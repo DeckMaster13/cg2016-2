@@ -1,0 +1,12 @@
+d:
+cd "D:/Projets infos/Projets C/Hypersonic/Hypersonic"
+D:\Python27\python.exe CGFile.py "D:/Projets infos/Projets C/Hypersonic/Hypersonic/main.cpp"
+
+
+- si une bombe a été placée, considérez que les caisses sont détruites
+- prendre en compte le temps de reload
+- prendre en compte portée des bombes
+- prendre en compte le nombre de bombes
+- il met la bombe il se déplace puis il recalcule => peut être bloqué par sa propre bombe
+- utiliser le plus court chemin pour faire gaffesi on va pas tomber sur une bombe => on move de case en case et on peut vérifier si le next move nous tue pas
+- si je met une bombe, voir si je peux me sauver aux tours suivants
