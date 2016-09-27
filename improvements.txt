@@ -10,3 +10,4 @@ D:\Python27\python.exe CGFile.py "D:/Projets infos/Projets C/Hypersonic/Hyperson
 - il met la bombe il se déplace puis il recalcule => peut être bloqué par sa propre bombe
 - utiliser le plus court chemin pour faire gaffesi on va pas tomber sur une bombe => on move de case en case et on peut vérifier si le next move nous tue pas
 - si je met une bombe, voir si je peux me sauver aux tours suivants
+- utiliser les réactions en chaine

@@ -100,6 +100,8 @@ static vector<Floor> getNeighbors(const Floor& current, const vector<vector<Floo
 
 static vector<Pos> findShortestPath(const GameObject& me, const Pos& destination, const vector<vector<Floor>>& map)
 {
+   if (me.m_coord == destination) return vector<Pos>(1, destination);
+  
    priority_queue<Floor> frontier;
    frontier.push(Floor(TYPE_NONE, me.m_coord, 0));
    vector<vector<Pos*>> cameFrom(HEIGHT, vector<Pos*>(WIDTH, nullptr));
@@ -152,6 +154,15 @@ static vector<Pos> findShortestPath(const GameObject& me, const Pos& destination
 
    }
    return res;
+}
+
+static int willDieInXTurns()
+{
+   int turnsBeforeDying = 0;
+
+
+
+   return turnsBeforeDying;
 }
 
 #endif

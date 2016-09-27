@@ -232,6 +232,8 @@ static void testFindShortestPath()
    res = findShortestPath(me, destination, map);
    assert(res.empty());
 
+   res = findShortestPath(me, me.m_coord, map);
+   assert(res.size() == 1);
 }
 
 int main()

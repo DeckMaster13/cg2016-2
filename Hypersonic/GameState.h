@@ -59,6 +59,7 @@ public:
    bool m_hasReachedObjective{ true };
    Pos m_objective;
    Type m_objectiveType;
+   vector<Pos> m_objectiveShortestPath;
 };
 
 #endif
