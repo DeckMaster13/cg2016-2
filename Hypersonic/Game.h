@@ -2,22 +2,62 @@
 #define __GAME_H__
 
 #include "GameState.h"
-#include "GameState.h"
 #include "ReaderWriter.h"
 
 using namespace std;
 
-static void fillScore(int& explosionScore, int& utilityScore, const Floor& targetFloor, int bombScore, int emptyFloorBonus, int distance)
+static void fillScore(int& score, int& explosionScore, const Floor& targetFloor, int bombScore, int emptyFloorBonus, int distance)
 {
-   int distanceMalus = distance;
+   int distanceMalus = distance*distance;
    int objectBonus = targetFloor.m_type == TYPE_OBJECT ? 50 : 0;
    int explosionMalus = targetFloor.m_turnsBeforeDestruction != 0 ? 500 * 1 / ((targetFloor.m_turnsBeforeDestruction - 0.5)*(targetFloor.m_turnsBeforeDestruction - 0.5)) : 0;
    int bombScoreBonus = bombScore > 0 ? (bombScore + 2)*(bombScore + 2) : 0;
 
-   explosionScore = emptyFloorBonus + bombScoreBonus - explosionMalus - distanceMalus;//TODO: remove explosion malus
-   utilityScore = emptyFloorBonus + objectBonus - explosionMalus - distanceMalus*distanceMalus;
-   explosionScore = explosionScore;
-   utilityScore = utilityScore;
+   explosionScore = emptyFloorBonus + bombScoreBonus - distanceMalus;
+   score = emptyFloorBonus + bombScoreBonus + objectBonus - explosionMalus - distanceMalus;
+}
+
+static string decideActionToDo(const GameState& state, int distanceToObjective, bool& shouldChangeObjective)
+{
+   string actionToDo = "MOVE";
+   if ((distanceToObjective == 0 || distanceToObjective == 1) && state.m_objectiveType == TYPE_OBJECT)
+   {
+      actionToDo = "MOVE";
+      shouldChangeObjective = true;
+   }
+   else if (distanceToObjective == 0 && state.m_objectiveType == TYPE_BOMB)
+   {
+      actionToDo = "BOMB";
+      shouldChangeObjective = true;
+   }
+   return actionToDo;
+}
+
+static string decidePlaceToGo(GameState& state)
+{
+   string placeToGo = "0 0";
+   if (!state.m_objectiveShortestPath.empty())
+   {
+      ostringstream os;
+      os << state.m_objectiveShortestPath.back();
+      state.m_objectiveShortestPath.pop_back();
+      placeToGo = os.str();
+   }
+   else
+   {
+      ostringstream os;
+      os << state.m_me.m_coord;
+      placeToGo = os.str();
+   }
+   return placeToGo;
+}
+
+static void changeObjective(GameState& state, vector<vector<vector<Pos>>>& shortestPaths, const Pos& bestObjectiveSoFar, const Pos& bestExplosionSoFar)
+{
+   state.m_objective = bestObjectiveSoFar;
+   shortestPaths.pop_back();//remove the latest which is the tile where we stand
+   state.m_objectiveShortestPath = shortestPaths[state.m_objective.m_x][state.m_objective.m_y];
+   state.m_objectiveType = computeDistance(bestObjectiveSoFar, bestExplosionSoFar) == 0 ? TYPE_BOMB : TYPE_OBJECT;
 }
 
 class Game
@@ -30,19 +70,19 @@ public:
    string play()
    {
       int numberOfPathsFound = 0;//toDebug
-      vector<vector<int>> explosionScores(HEIGHT, vector<int>(WIDTH));//todebug
-      vector<vector<int>> utilityScores(HEIGHT, vector<int>(WIDTH));//todebug
+      vector<vector<int>> bestScores(HEIGHT, vector<int>(WIDTH));//todebug
+      vector<vector<int>> bestExplosionScores(HEIGHT, vector<int>(WIDTH));//todebug
       vector<vector<vector<Pos>>> shortestPaths(HEIGHT, vector<vector<Pos>>(WIDTH));
+      int bestScoreSoFar = std::numeric_limits<int>::min();
       int bestExplosionScoreSoFar = std::numeric_limits<int>::min();
-      int bestUtilityScoreSoFar = std::numeric_limits<int>::min();
-      Pos bestExplosionPosSoFar = Pos(0, 0);
-      Pos bestUtilityPosSoFar = Pos(0, 0);
+      Pos bestObjectiveSoFar = Pos(0, 0);
+      Pos bestExplosionSoFar = Pos(0, 0);
 
       //TODO: check, maybe useless
       //before posing the bomb to avoid being trapped by its own bomb explosion
       if (computeDistance(m_state.m_me, m_state.m_objective) == 1)
       {
-         updateTurnBeforeDestructionOnALine(GameObject(TYPE_BOMB, OWNER_ME, m_state.m_objective, 9, 0), 2, 2, m_state.m_map);
+         updateTurnBeforeDestructionOnALine(GameObject(TYPE_BOMB, m_state.m_me.m_ownerId, m_state.m_objective, 9, 0), m_state.m_me.m_param2, m_state.m_me.m_param2, m_state.m_map);
       }
 
       //vector<vector<int>> bombAndDistanceTileScoreMap;
@@ -61,71 +101,41 @@ public:
             int distance = shortestPaths[i][j].size() - 1;
 
             //score
-            fillScore(explosionScores[i][j], utilityScores[i][j], targetFloor, m_state.m_bombTileScoresMap[i][j], emptyFloorBonus, distance);
-            
+            fillScore(bestScores[i][j], bestExplosionScores[i][j], targetFloor, m_state.m_bombTileScoresMap[i][j], emptyFloorBonus, distance);
+            if (bestExplosionScoreSoFar < bestExplosionScores[i][j])
+            {
+               bestExplosionScoreSoFar = bestExplosionScores[i][j];
+               bestExplosionSoFar = Pos(i, j);
+            }
+
             //best choices
-            if (bestExplosionScoreSoFar < explosionScores[i][j])
+            if (bestScoreSoFar < bestScores[i][j])
             {
-               bestExplosionScoreSoFar = explosionScores[i][j];
-               bestExplosionPosSoFar = Pos(i, j);
-            }
-            if (bestUtilityScoreSoFar < utilityScores[i][j])
-            {
-               bestUtilityScoreSoFar = utilityScores[i][j];
-               bestUtilityPosSoFar = Pos(i, j);
+               bestScoreSoFar = bestScores[i][j];
+               bestObjectiveSoFar = Pos(i, j);
             }
          }
       }
 
-      write(explosionScores);
       cerr << endl;
-      write(utilityScores);
-
-      if (m_state.m_hasReachedObjective)
-      {
-         if (bestExplosionScoreSoFar > bestUtilityScoreSoFar)
-         {
-            m_state.m_objective = bestExplosionPosSoFar;
-            m_state.m_objectiveType = TYPE_BOMB;
-         }
-         else
-         {
-            m_state.m_objective = bestUtilityPosSoFar;
-            m_state.m_objectiveType = TYPE_OBJECT;
-         }
-         shortestPaths.pop_back();//remove the latest which is the tile where we stand
-         m_state.m_objectiveShortestPath = shortestPaths[m_state.m_objective.m_x][m_state.m_objective.m_y];
-         m_state.m_hasReachedObjective = false;
-      }
-
+      write(bestScores);
+      cerr << endl;
       cerr << "numberOfPathsFound: " << numberOfPathsFound << endl;
-      string actionToDo = "MOVE";
       //cerr << "Move" << endl;
       //cerr << "bestPosSoFar: " << bestPosSoFar << endl;
       //cerr << "objective: " << m_state.m_objective << endl;
       //cerr << "myPos: " << m_state.m_me.m_coord << endl;
       //cerr << "Move" << endl;
-      if (m_state.m_objective == m_state.m_me.m_coord)
-      {
-         //cerr << "Place bomb" << endl;
-         actionToDo = m_state.m_objectiveType == TYPE_BOMB ? "BOMB" : "MOVE";
-         m_state.m_hasReachedObjective = true;
-      }
 
-      string placeToGo = "0 0";
-      if (!m_state.m_objectiveShortestPath.empty())
+      int distanceToObjective = computeDistance(m_state.m_objective, m_state.m_me.m_coord);
+      if (shortestPaths.empty())
       {
-         ostringstream os;
-         os << m_state.m_objectiveShortestPath.back();
-         placeToGo = os.str();
+         changeObjective(m_state, shortestPaths, bestObjectiveSoFar, bestExplosionSoFar);
       }
-      else
-      {
-         ostringstream os;
-         os << m_state.m_objective;
-         placeToGo = os.str();
-      }
-      m_state.m_objectiveShortestPath.pop_back();
+      bool shouldChangeObjective = false;
+      string actionToDo = decideActionToDo(m_state, distanceToObjective, shouldChangeObjective);
+      string placeToGo = decidePlaceToGo(m_state);
+
 
       //HACK for Boss
       //if (m_state.m_timerBeforeNextBomb == 0 && !(m_state.m_me.m_coord.m_x == 0 && m_state.m_me.m_coord.m_x == 0) && (m_state.m_me.m_coord.m_x % 2 == 0 || m_state.m_me.m_coord.m_y % 2 == 0))
@@ -135,9 +145,10 @@ public:
 
       ostringstream os;
       os << actionToDo << " " << placeToGo << " " << actionToDo << " " << placeToGo;
-      if (m_state.m_hasReachedObjective)
+      if (shouldChangeObjective)
       {
-         os << "*";
+         changeObjective(m_state, shortestPaths, bestObjectiveSoFar, bestExplosionSoFar);
+         os << "*" << " >> " << bestObjectiveSoFar;
       }
       return os.str();
    }

@@ -7,14 +7,19 @@
 
 #include "GameEntities.h"
  
+static int computeDistance(const Pos& pos1, const Pos& pos2)
+{
+   return abs(pos1.m_x - pos2.m_x) + abs(pos1.m_y - pos2.m_y);
+}
+
 static int computeDistance(const GameObject& obj1, const Pos& pos)
 {
-   return abs(obj1.m_coord.m_x - pos.m_x) + abs(obj1.m_coord.m_y - pos.m_y);
+   return computeDistance(obj1.m_coord, pos);
 }
 
 static int computeDistance(const GameObject& obj1, const GameObject& obj2)
 {
-   return abs(obj1.m_coord.m_x - obj2.m_coord.m_x) + abs(obj1.m_coord.m_y - obj2.m_coord.m_y);
+   return computeDistance(obj1.m_coord, obj2.m_coord);
 }
 
 static bool willBombAtPosBlowBox(const GameObject& bomb, const GameObject& box)
@@ -37,7 +42,7 @@ static int howManyBombsRemaining(const GameObject& me, const std::vector<GameObj
    int myBombsOnTheFieldCount = 0;
    for (const auto& bomb : bombs)
    {
-      if (bomb.m_owner == OWNER_ME)
+      if (bomb.m_ownerId == me.m_ownerId)
       {
          myBombsOnTheFieldCount++;
       }
@@ -56,7 +61,7 @@ static int updateTimerBeforeNextBomb(const GameObject& me, const std::vector<Gam
       int minTurnsBeforeExplosion = 8;
       for (const auto& bomb : bombs)
       {
-         if (bomb.m_owner == OWNER_ME)
+         if (bomb.m_ownerId == me.m_ownerId)
          {
             int turnsBeforeExplosion = bomb.m_param1;
             if (turnsBeforeExplosion < minTurnsBeforeExplosion)

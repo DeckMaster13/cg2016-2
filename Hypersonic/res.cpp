@@ -1,3 +1,4 @@
+#include <map>
 #include <vector>
 #include <cmath>
 #include <iostream>
@@ -10,43 +11,17 @@
 #include <queue>
 #include <cmath>
 #include <iostream>
+#include <cassert>
 #include <iostream>
+#include <map>
 #include <sstream>
 #include <vector>
 #include <cassert>
-#include <cassert>
 #include <algorithm>
 #include <iostream>
-#include <vector>
+#include <map>
 #include <string>
-#include <cmath>
-#include <iostream>
-#include <cmath>
 #include <vector>
-#include <queue>
-#include <cmath>
-#include <iostream>
-#include <vector>
-#include <cmath>
-#include <iostream>
-#include <cmath>
-#include <iostream>
-#include <cmath>
-#include <iostream>
-#include <cmath>
-#include <vector>
-#include <queue>
-#include <cmath>
-#include <iostream>
-#include <iostream>
-#include <sstream>
-#include <vector>
-#include <cassert>
-#include <cassert>
-#include <algorithm>
-#include <iostream>
-#include <vector>
-#include <string>
 #include <cmath>
 #include <iostream>
 #include <cmath>
@@ -57,8 +32,9 @@
 #include <cassert>
 #include <algorithm>
 #include <iostream>
-#include <vector>
+#include <map>
 #include <string>
+#include <vector>
 #include <cmath>
 #include <iostream>
 #include <cmath>
@@ -166,13 +142,6 @@ enum Type
    TYPE_WALL
 };
 
-enum Owner
-{
-   OWNER_NONE,
-   OWNER_ME,
-   OWNER_HIM
-};
-
 struct Floor
 {
    Floor() = default;
@@ -214,9 +183,9 @@ static ostream& operator<<(ostream& os, const Floor& obj)
 class GameObject
 {
 public:
-   GameObject(Type entityType, Owner owner, Pos coord, int param1, int param2)
+   GameObject(Type entityType, int ownerId, Pos coord, int param1, int param2)
       : m_entityType(entityType)
-      , m_owner(owner)
+      , m_ownerId(ownerId)
       , m_coord(coord)
       , m_param1(param1)
       , m_param2(param2)
@@ -227,7 +196,7 @@ public:
 
 public:
    Type m_entityType{TYPE_NONE};
-   Owner m_owner{ OWNER_NONE };
+   int m_ownerId{ -1 };
    Pos m_coord{};
    int m_param1{0};
    int m_param2{ 0 };
@@ -237,7 +206,7 @@ public:
 static ostream& operator<<(ostream& os, const GameObject& obj)
 {
    os << "TYPE: " << obj.m_entityType << "|";
-   os << "OWNER: " << obj.m_owner << "|";
+   os << "OWNER: " << obj.m_ownerId << "|";
    os << "COORD: " << obj.m_coord << "|";
    os << "PARAM1: " << obj.m_param1 << "|";
    os << "PARAM2: " << obj.m_param2 << "|";
@@ -245,14 +214,19 @@ static ostream& operator<<(ostream& os, const GameObject& obj)
    os << endl;
    return os;
 }
+static int computeDistance(const Pos& pos1, const Pos& pos2)
+{
+   return abs(pos1.m_x - pos2.m_x) + abs(pos1.m_y - pos2.m_y);
+}
+
 static int computeDistance(const GameObject& obj1, const Pos& pos)
 {
-   return abs(obj1.m_coord.m_x - pos.m_x) + abs(obj1.m_coord.m_y - pos.m_y);
+   return computeDistance(obj1.m_coord, pos);
 }
 
 static int computeDistance(const GameObject& obj1, const GameObject& obj2)
 {
-   return abs(obj1.m_coord.m_x - obj2.m_coord.m_x) + abs(obj1.m_coord.m_y - obj2.m_coord.m_y);
+   return computeDistance(obj1.m_coord, obj2.m_coord);
 }
 
 static bool willBombAtPosBlowBox(const GameObject& bomb, const GameObject& box)
@@ -275,7 +249,7 @@ static int howManyBombsRemaining(const GameObject& me, const std::vector<GameObj
    int myBombsOnTheFieldCount = 0;
    for (const auto& bomb : bombs)
    {
-      if (bomb.m_owner == OWNER_ME)
+      if (bomb.m_ownerId == me.m_ownerId)
       {
          myBombsOnTheFieldCount++;
       }
@@ -294,7 +268,7 @@ static int updateTimerBeforeNextBomb(const GameObject& me, const std::vector<Gam
       int minTurnsBeforeExplosion = 8;
       for (const auto& bomb : bombs)
       {
-         if (bomb.m_owner == OWNER_ME)
+         if (bomb.m_ownerId == me.m_ownerId)
          {
             int turnsBeforeExplosion = bomb.m_param1;
             if (turnsBeforeExplosion < minTurnsBeforeExplosion)
@@ -443,14 +417,14 @@ static void computeBombTileScore(const Pos& boxCoord, int rangeDeltaX, int range
 
 }
 
-static void fillBombTilesScoreMap(const vector<GameObject>& boxes, vector<vector<int>>& bombTileScoreMap, const vector<vector<Floor>>& map)
+static void fillBombTilesScoreMap(const vector<GameObject>& boxes, const GameObject& me, vector<vector<int>>& bombTileScoreMap, const vector<vector<Floor>>& map)
 {
    for (const auto& box : boxes)
    {
-      computeBombTileScore(box.m_coord, 2, 0, bombTileScoreMap, map);
-      computeBombTileScore(box.m_coord, -2, 0, bombTileScoreMap, map);
-      computeBombTileScore(box.m_coord, 0, 2, bombTileScoreMap, map);
-      computeBombTileScore(box.m_coord, 0, -2, bombTileScoreMap, map);
+      computeBombTileScore(box.m_coord, me.m_param2, 0, bombTileScoreMap, map);
+      computeBombTileScore(box.m_coord, -me.m_param2, 0, bombTileScoreMap, map);
+      computeBombTileScore(box.m_coord, 0, me.m_param2, bombTileScoreMap, map);
+      computeBombTileScore(box.m_coord, 0, -me.m_param2, bombTileScoreMap, map);
    }
 }
 
@@ -472,12 +446,13 @@ static void updateTurnBeforeDestructionOnALine(const GameObject& bomb, int range
 
 }
 
-static void updateTurnsBeforeDestruction(const vector<GameObject>& bombs, vector<vector<Floor>>& map)
+static void updateTurnsBeforeDestruction(const vector<GameObject>& bombs, map<int, GameObject>& players, vector<vector<Floor>>& map)
 {
    for (const auto& bomb : bombs)
    {
-      updateTurnBeforeDestructionOnALine(bomb, 2, 0, map);
-      updateTurnBeforeDestructionOnALine(bomb, 0, 2, map);
+      GameObject player = players[bomb.m_ownerId];
+      updateTurnBeforeDestructionOnALine(bomb, player.m_param2, 0, map);
+      updateTurnBeforeDestructionOnALine(bomb, 0, player.m_param2, map);
    }
 }
 using namespace std;
@@ -535,7 +510,7 @@ public:
 
                m_map[i][j] = Floor(TYPE_BOX, Pos(i,j), 0);
 
-               GameObject box(TYPE_BOX, OWNER_NONE, Pos(i,j), 0, 0);
+               GameObject box(TYPE_BOX, -1, Pos(i,j), 0, 0);
                m_boxes.push_back(box);
             }
             else if (row[j] == '.')
@@ -545,17 +520,17 @@ public:
             else if (row[j] == '1')
             {
                m_map[i][j] = Floor(TYPE_BOX, Pos(i, j), 0);
-               m_boxes.push_back(GameObject(TYPE_BOX, OWNER_NONE, Pos(i, j), 1, 0));
+               m_boxes.push_back(GameObject(TYPE_BOX, -1, Pos(i, j), 1, 0));
             }
             else if (row[j] == '2')
             {
                m_map[i][j] = Floor(TYPE_BOX, Pos(i, j), 0);
-               m_boxes.push_back(GameObject(TYPE_BOX, OWNER_NONE, Pos(i, j), 2, 0));
+               m_boxes.push_back(GameObject(TYPE_BOX, -1, Pos(i, j), 2, 0));
             }
             else if (row[j] == 'X')
             {
                m_map[i][j] = Floor(TYPE_WALL, Pos(i, j), 0);
-               m_walls.push_back(GameObject(TYPE_WALL, OWNER_NONE, Pos(i, j), 0, 0));
+               m_walls.push_back(GameObject(TYPE_WALL, -1, Pos(i, j), 0, 0));
             }
          }
       }
@@ -591,7 +566,7 @@ public:
             break;
          }
 
-         GameObject object(enumEntityType, owner == settings.m_myId ? OWNER_ME : OWNER_HIM, Pos(y, x), param1, param2);
+         GameObject object(enumEntityType, owner, Pos(y, x), param1, param2);
          if (enumEntityType == TYPE_BOMB)
          {
             m_bombs.push_back(object);
@@ -605,19 +580,14 @@ public:
          else if (enumEntityType == TYPE_PLAYER)
          {
 
-            if (object.m_owner == OWNER_ME)
+            m_players[object.m_ownerId] = object;
+            if (object.m_ownerId == settings.m_myId)
             {
-               cerr << "FOUND ME at " << object.m_coord << endl;
                m_me = object;
-            }
-            else if (object.m_owner == OWNER_HIM)
-            {
-
-               m_him = object;
             }
          }
       }
- }
+   }
 
 public:
  vector<vector<Floor>> m_map;
@@ -626,8 +596,8 @@ public:
    vector<GameObject> m_objects;
    vector<GameObject> m_walls;
    GameObject m_me;
-   GameObject m_him;
    int m_timerBeforeNextBomb;
+   map<int, GameObject> m_players;
 };
 
 std::ostream& operator<<(std::ostream& os, const TurnInput& obj)
@@ -752,13 +722,13 @@ public:
 
 
       m_me = turnInput.m_me;
-      m_him = turnInput.m_him;
+      m_players = turnInput.m_players;
 
       m_bombTileScoresMap = vector<vector<int>>(11, vector<int>(13));
 
-      updateTurnsBeforeDestruction(m_bombs, m_map);
+      updateTurnsBeforeDestruction(m_bombs, m_players, m_map);
       m_timerBeforeNextBomb = updateTimerBeforeNextBomb(m_me, m_bombs);
-      fillBombTilesScoreMap(m_boxes, m_bombTileScoresMap, m_map);
+      fillBombTilesScoreMap(m_boxes, m_me, m_bombTileScoresMap, m_map);
    }
 
 public:
@@ -769,26 +739,66 @@ public:
    vector<GameObject> m_objects;
    vector<GameObject> m_walls;
    GameObject m_me;
-   GameObject m_him;
    int m_timerBeforeNextBomb;
-   bool m_hasReachedObjective{ true };
-   Pos m_objective;
-   Type m_objectiveType;
+   Pos m_objective{Pos(0,0)};
+   Type m_objectiveType{TYPE_OBJECT};
    vector<Pos> m_objectiveShortestPath;
+   map<int, GameObject> m_players;
 };
 using namespace std;
 
-static void fillScore(int& explosionScore, int& utilityScore, const Floor& targetFloor, int bombScore, int emptyFloorBonus, int distance)
+static void fillScore(int& score, int& explosionScore, const Floor& targetFloor, int bombScore, int emptyFloorBonus, int distance)
 {
-   int distanceMalus = distance;
+   int distanceMalus = distance*distance;
    int objectBonus = targetFloor.m_type == TYPE_OBJECT ? 50 : 0;
    int explosionMalus = targetFloor.m_turnsBeforeDestruction != 0 ? 500 * 1 / ((targetFloor.m_turnsBeforeDestruction - 0.5)*(targetFloor.m_turnsBeforeDestruction - 0.5)) : 0;
    int bombScoreBonus = bombScore > 0 ? (bombScore + 2)*(bombScore + 2) : 0;
 
-   explosionScore = emptyFloorBonus + bombScoreBonus - explosionMalus - distanceMalus;
-   utilityScore = emptyFloorBonus + objectBonus - explosionMalus - distanceMalus*distanceMalus;
-   explosionScore = explosionScore;
-   utilityScore = utilityScore;
+   explosionScore = emptyFloorBonus + bombScoreBonus - distanceMalus;
+   score = emptyFloorBonus + bombScoreBonus + objectBonus - explosionMalus - distanceMalus;
+}
+
+static string decideActionToDo(const GameState& state, int distanceToObjective, bool& shouldChangeObjective)
+{
+   string actionToDo = "MOVE";
+   if ((distanceToObjective == 0 || distanceToObjective == 1) && state.m_objectiveType == TYPE_OBJECT)
+   {
+      actionToDo = "MOVE";
+      shouldChangeObjective = true;
+   }
+   else if (distanceToObjective == 0 && state.m_objectiveType == TYPE_BOMB)
+   {
+      actionToDo = "BOMB";
+      shouldChangeObjective = true;
+   }
+   return actionToDo;
+}
+
+static string decidePlaceToGo(GameState& state)
+{
+   string placeToGo = "0 0";
+   if (!state.m_objectiveShortestPath.empty())
+   {
+      ostringstream os;
+      os << state.m_objectiveShortestPath.back();
+      state.m_objectiveShortestPath.pop_back();
+      placeToGo = os.str();
+   }
+   else
+   {
+      ostringstream os;
+      os << state.m_me.m_coord;
+      placeToGo = os.str();
+   }
+   return placeToGo;
+}
+
+static void changeObjective(GameState& state, vector<vector<vector<Pos>>>& shortestPaths, const Pos& bestObjectiveSoFar, const Pos& bestExplosionSoFar)
+{
+   state.m_objective = bestObjectiveSoFar;
+   shortestPaths.pop_back();
+   state.m_objectiveShortestPath = shortestPaths[state.m_objective.m_x][state.m_objective.m_y];
+   state.m_objectiveType = computeDistance(bestObjectiveSoFar, bestExplosionSoFar) == 0 ? TYPE_BOMB : TYPE_OBJECT;
 }
 
 class Game
@@ -801,19 +811,19 @@ public:
    string play()
    {
       int numberOfPathsFound = 0;
-      vector<vector<int>> explosionScores(11, vector<int>(13));
-      vector<vector<int>> utilityScores(11, vector<int>(13));
+      vector<vector<int>> bestScores(11, vector<int>(13));
+      vector<vector<int>> bestExplosionScores(11, vector<int>(13));
       vector<vector<vector<Pos>>> shortestPaths(11, vector<vector<Pos>>(13));
+      int bestScoreSoFar = std::numeric_limits<int>::min();
       int bestExplosionScoreSoFar = std::numeric_limits<int>::min();
-      int bestUtilityScoreSoFar = std::numeric_limits<int>::min();
-      Pos bestExplosionPosSoFar = Pos(0, 0);
-      Pos bestUtilityPosSoFar = Pos(0, 0);
+      Pos bestObjectiveSoFar = Pos(0, 0);
+      Pos bestExplosionSoFar = Pos(0, 0);
 
 
 
       if (computeDistance(m_state.m_me, m_state.m_objective) == 1)
       {
-         updateTurnBeforeDestructionOnALine(GameObject(TYPE_BOMB, OWNER_ME, m_state.m_objective, 9, 0), 2, 2, m_state.m_map);
+         updateTurnBeforeDestructionOnALine(GameObject(TYPE_BOMB, m_state.m_me.m_ownerId, m_state.m_objective, 9, 0), m_state.m_me.m_param2, m_state.m_me.m_param2, m_state.m_map);
       }
 
 
@@ -832,83 +842,46 @@ public:
             int distance = shortestPaths[i][j].size() - 1;
 
 
-            fillScore(explosionScores[i][j], utilityScores[i][j], targetFloor, m_state.m_bombTileScoresMap[i][j], emptyFloorBonus, distance);
-
-
-            if (bestExplosionScoreSoFar < explosionScores[i][j])
+            fillScore(bestScores[i][j], bestExplosionScores[i][j], targetFloor, m_state.m_bombTileScoresMap[i][j], emptyFloorBonus, distance);
+            if (bestExplosionScoreSoFar < bestExplosionScores[i][j])
             {
-               bestExplosionScoreSoFar = explosionScores[i][j];
-               bestExplosionPosSoFar = Pos(i, j);
+               bestExplosionScoreSoFar = bestExplosionScores[i][j];
+               bestExplosionSoFar = Pos(i, j);
             }
-            if (bestUtilityScoreSoFar < utilityScores[i][j])
+
+
+            if (bestScoreSoFar < bestScores[i][j])
             {
-               bestUtilityScoreSoFar = utilityScores[i][j];
-               bestUtilityPosSoFar = Pos(i, j);
+               bestScoreSoFar = bestScores[i][j];
+               bestObjectiveSoFar = Pos(i, j);
             }
          }
       }
 
-      write(explosionScores);
       cerr << endl;
-      write(utilityScores);
-
-      if (m_state.m_hasReachedObjective)
-      {
-         if (bestExplosionScoreSoFar > bestUtilityScoreSoFar)
-         {
-            m_state.m_objective = bestExplosionPosSoFar;
-            m_state.m_objectiveType = TYPE_BOMB;
-         }
-         else
-         {
-            m_state.m_objective = bestUtilityPosSoFar;
-            m_state.m_objectiveType = TYPE_OBJECT;
-         }
-         shortestPaths.pop_back();
-         m_state.m_objectiveShortestPath = shortestPaths[m_state.m_objective.m_x][m_state.m_objective.m_y];
-         m_state.m_hasReachedObjective = false;
-      }
-
+      write(bestScores);
+      cerr << endl;
       cerr << "numberOfPathsFound: " << numberOfPathsFound << endl;
-      string actionToDo = "MOVE";
 
 
 
 
 
-      if (m_state.m_objective == m_state.m_me.m_coord)
+
+      int distanceToObjective = computeDistance(m_state.m_objective, m_state.m_me.m_coord);
+      if (shortestPaths.empty())
       {
-
-         actionToDo = m_state.m_objectiveType == TYPE_BOMB ? "BOMB" : "MOVE";
-         m_state.m_hasReachedObjective = true;
+         changeObjective(m_state, shortestPaths, bestObjectiveSoFar, bestExplosionSoFar);
       }
-
-      string placeToGo = "0 0";
-      if (!m_state.m_objectiveShortestPath.empty())
-      {
-         ostringstream os;
-         os << m_state.m_objectiveShortestPath.back();
-         placeToGo = os.str();
-      }
-      else
-      {
-         ostringstream os;
-         os << m_state.m_objective;
-         placeToGo = os.str();
-      }
-      m_state.m_objectiveShortestPath.pop_back();
-
-
-
-
-
-
-
+      bool shouldChangeObjective = false;
+      string actionToDo = decideActionToDo(m_state, distanceToObjective, shouldChangeObjective);
+      string placeToGo = decidePlaceToGo(m_state);
       ostringstream os;
       os << actionToDo << " " << placeToGo << " " << actionToDo << " " << placeToGo;
-      if (m_state.m_hasReachedObjective)
+      if (shouldChangeObjective)
       {
-         os << "*";
+         changeObjective(m_state, shortestPaths, bestObjectiveSoFar, bestExplosionSoFar);
+         os << "*" << " >> " << bestObjectiveSoFar;
       }
       return os.str();
    }

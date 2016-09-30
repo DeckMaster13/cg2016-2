@@ -4,8 +4,9 @@
 #include <cassert>
 #include <algorithm>
 #include <iostream>
-#include <vector>
+#include <map>
 #include <string>
+#include <vector>
 
 #include "GameEntities.h"
 #include "Utilities.h"
@@ -65,7 +66,7 @@ public:
                //cerr << i << "|" << j << endl;
                m_map[i][j] = Floor(TYPE_BOX, Pos(i,j), 0);
 
-               GameObject box(TYPE_BOX, OWNER_NONE, Pos(i,j), 0, 0);
+               GameObject box(TYPE_BOX, -1, Pos(i,j), 0, 0);
                m_boxes.push_back(box);
             }
             else if (row[j] == '.')
@@ -75,17 +76,17 @@ public:
             else if (row[j] == '1')
             {
                m_map[i][j] = Floor(TYPE_BOX, Pos(i, j), 0);
-               m_boxes.push_back(GameObject(TYPE_BOX, OWNER_NONE, Pos(i, j), 1, 0));
+               m_boxes.push_back(GameObject(TYPE_BOX, -1, Pos(i, j), 1, 0));
             }
             else if (row[j] == '2')
             {
                m_map[i][j] = Floor(TYPE_BOX, Pos(i, j), 0);
-               m_boxes.push_back(GameObject(TYPE_BOX, OWNER_NONE, Pos(i, j), 2, 0));
+               m_boxes.push_back(GameObject(TYPE_BOX, -1, Pos(i, j), 2, 0));
             }
             else if (row[j] == 'X')
             {
                m_map[i][j] = Floor(TYPE_WALL, Pos(i, j), 0);
-               m_walls.push_back(GameObject(TYPE_WALL, OWNER_NONE, Pos(i, j), 0, 0));
+               m_walls.push_back(GameObject(TYPE_WALL, -1, Pos(i, j), 0, 0));
             }
          }
       }
@@ -121,7 +122,7 @@ public:
             break;
          }
 
-         GameObject object(enumEntityType, owner == settings.m_myId ? OWNER_ME : OWNER_HIM, Pos(y, x), param1, param2);
+         GameObject object(enumEntityType, owner, Pos(y, x), param1, param2);
          if (enumEntityType == TYPE_BOMB)
          {
             m_bombs.push_back(object);
@@ -135,20 +136,15 @@ public:
          else if (enumEntityType == TYPE_PLAYER)
          {
             //cerr << "TYPE PLAYER" << endl;
-            if (object.m_owner == OWNER_ME)
+            m_players[object.m_ownerId] = object;
+            if (object.m_ownerId == settings.m_myId)
             {
-               cerr << "FOUND ME at " << object.m_coord << endl;
                m_me = object;
-            }
-            else if (object.m_owner == OWNER_HIM)
-            {
-               //cerr << "FOUND HIM" << endl;
-               m_him = object;
             }
          }
       }
-	}
-	
+   }
+
 public:
 	vector<vector<Floor>> m_map;
    vector<GameObject> m_bombs;
@@ -156,8 +152,8 @@ public:
    vector<GameObject> m_objects;
    vector<GameObject> m_walls;
    GameObject m_me;
-   GameObject m_him;
    int m_timerBeforeNextBomb;
+   map<int, GameObject> m_players;
 };
 
 std::ostream& operator<<(std::ostream& os, const TurnInput& obj)

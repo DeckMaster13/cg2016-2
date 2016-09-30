@@ -4,10 +4,11 @@
 #include "GameEntities.h"
 #include "Pos.h"
 #include "Utilities.h"
+#include <cassert>
 #include <iostream>
+#include <map>
 #include <sstream>
 #include <vector>
-#include <cassert>
 
 using namespace std;
 
@@ -47,14 +48,14 @@ static void computeBombTileScore(const Pos& boxCoord, int rangeDeltaX, int range
 
 }
 
-static void fillBombTilesScoreMap(const vector<GameObject>& boxes, vector<vector<int>>& bombTileScoreMap, const vector<vector<Floor>>& map)
+static void fillBombTilesScoreMap(const vector<GameObject>& boxes, const GameObject& me, vector<vector<int>>& bombTileScoreMap, const vector<vector<Floor>>& map)
 {
    for (const auto& box : boxes)
    {
-      computeBombTileScore(box.m_coord, 2, 0, bombTileScoreMap, map);
-      computeBombTileScore(box.m_coord, -2, 0, bombTileScoreMap, map);
-      computeBombTileScore(box.m_coord, 0, 2, bombTileScoreMap, map);
-      computeBombTileScore(box.m_coord, 0, -2, bombTileScoreMap, map);
+      computeBombTileScore(box.m_coord, me.m_param2, 0, bombTileScoreMap, map);
+      computeBombTileScore(box.m_coord, -me.m_param2, 0, bombTileScoreMap, map);
+      computeBombTileScore(box.m_coord, 0, me.m_param2, bombTileScoreMap, map);
+      computeBombTileScore(box.m_coord, 0, -me.m_param2, bombTileScoreMap, map);
    }
 }
 
@@ -76,12 +77,13 @@ static void updateTurnBeforeDestructionOnALine(const GameObject& bomb, int range
 
 }
 
-static void updateTurnsBeforeDestruction(const vector<GameObject>& bombs, vector<vector<Floor>>& map)
+static void updateTurnsBeforeDestruction(const vector<GameObject>& bombs, map<int, GameObject>& players, vector<vector<Floor>>& map)
 {
    for (const auto& bomb : bombs)
    {
-      updateTurnBeforeDestructionOnALine(bomb, 2, 0, map);
-      updateTurnBeforeDestructionOnALine(bomb, 0, 2, map);
+      GameObject player = players[bomb.m_ownerId];
+      updateTurnBeforeDestructionOnALine(bomb, player.m_param2, 0, map);
+      updateTurnBeforeDestructionOnALine(bomb, 0, player.m_param2, map);
    }
 }
 

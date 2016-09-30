@@ -18,13 +18,6 @@ enum Type
    TYPE_WALL
 };
 
-enum Owner
-{
-   OWNER_NONE,
-   OWNER_ME,
-   OWNER_HIM
-};
-
 struct Floor
 {
    Floor() = default;
@@ -66,9 +59,9 @@ static ostream& operator<<(ostream& os, const Floor& obj)
 class GameObject
 {
 public:
-   GameObject(Type entityType, Owner owner, Pos coord, int param1, int param2)
+   GameObject(Type entityType, int ownerId, Pos coord, int param1, int param2)
       : m_entityType(entityType)
-      , m_owner(owner)
+      , m_ownerId(ownerId)
       , m_coord(coord)
       , m_param1(param1)
       , m_param2(param2)
@@ -79,7 +72,7 @@ public:
 
 public:
    Type m_entityType{TYPE_NONE};
-   Owner m_owner{ OWNER_NONE };
+   int m_ownerId{ -1 };
    Pos m_coord{};
    int m_param1{0};//used later
    int m_param2{ 0 };//used later
@@ -89,7 +82,7 @@ public:
 static ostream& operator<<(ostream& os, const GameObject& obj)
 {
    os << "TYPE: " << obj.m_entityType << "|";
-   os << "OWNER: " << obj.m_owner << "|";
+   os << "OWNER: " << obj.m_ownerId << "|";
    os << "COORD: " << obj.m_coord << "|";
    os << "PARAM1: " << obj.m_param1 << "|";
    os << "PARAM2: " << obj.m_param2 << "|";

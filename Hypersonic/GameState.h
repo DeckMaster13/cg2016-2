@@ -1,6 +1,7 @@
 #ifndef __GAME_STATE_H__
 #define __GAME_STATE_H__
 
+#include <map>
 #include <vector>
 
 #include "GameEntities.h"
@@ -26,13 +27,13 @@ public:
       //cerr << "MEEEEE :" << turnInput.m_me.m_coord;
       //cerr << endl;
       m_me = turnInput.m_me;
-      m_him = turnInput.m_him;
+      m_players = turnInput.m_players;
 
       m_bombTileScoresMap = vector<vector<int>>(HEIGHT, vector<int>(WIDTH));
 
-      updateTurnsBeforeDestruction(m_bombs, m_map);
+      updateTurnsBeforeDestruction(m_bombs, m_players, m_map);
       m_timerBeforeNextBomb = updateTimerBeforeNextBomb(m_me, m_bombs);
-      fillBombTilesScoreMap(m_boxes, m_bombTileScoresMap, m_map);
+      fillBombTilesScoreMap(m_boxes, m_me, m_bombTileScoresMap, m_map);
       //write(m_bombTileScoresMap);
       //write(m_map);
       //DEBUG
@@ -54,12 +55,11 @@ public:
    vector<GameObject> m_objects;
    vector<GameObject> m_walls;
    GameObject m_me;
-   GameObject m_him;
    int m_timerBeforeNextBomb;
-   bool m_hasReachedObjective{ true };
-   Pos m_objective;
-   Type m_objectiveType;
+   Pos m_objective{Pos(0,0)};
+   Type m_objectiveType{TYPE_OBJECT};
    vector<Pos> m_objectiveShortestPath;
+   map<int, GameObject> m_players;
 };
 
 #endif

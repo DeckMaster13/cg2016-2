@@ -68,7 +68,9 @@ static void testFillBombTilesScoreMap()
    boxes.push_back(obj);
    map[obj.m_coord.m_x][obj.m_coord.m_y] = Floor(obj.m_entityType, obj.m_coord, obj.m_turnsBeforeDestruction);
 
-   fillBombTilesScoreMap(boxes, bombTileScoreMap, map);
+   GameObject me(TYPE_PLAYER, 0, Pos(0, 0), 1, 2);
+
+   fillBombTilesScoreMap(boxes, me, bombTileScoreMap, map);
    write(bombTileScoreMap);
    assert(bombTileScoreMap[0][0] == 0);
    assert(bombTileScoreMap[1][0] == 1);
@@ -105,7 +107,7 @@ static void testFillBombTilesScoreMap()
    cerr << endl;
    bombTileScoreMap.clear();
    bombTileScoreMap = vector<vector<int>>(HEIGHT, vector<int>(WIDTH));
-   fillBombTilesScoreMap(boxes, bombTileScoreMap, map);
+   fillBombTilesScoreMap(boxes, me, bombTileScoreMap, map);
    write(bombTileScoreMap);
 
 
@@ -182,7 +184,7 @@ static void testFillBombTilesScoreMap()
    walls.push_back(obj);
    map[obj.m_coord.m_x][obj.m_coord.m_y] = Floor(obj.m_entityType, obj.m_coord, obj.m_turnsBeforeDestruction);
 
-   fillBombTilesScoreMap(boxes, bombTileScoreMap, map);
+   fillBombTilesScoreMap(boxes, me, bombTileScoreMap, map);
    write(bombTileScoreMap);
 
    assert(bombTileScoreMap[0][0] == 0);
@@ -209,7 +211,7 @@ static void testFillBombTilesScoreMap()
 
 static void testFindShortestPath()
 {
-   GameObject me(TYPE_PLAYER, OWNER_ME, Pos(0, 0), 0, 0);
+   GameObject me(TYPE_PLAYER, 0, Pos(0, 0), 0, 0);
    vector<vector<Floor>> map(HEIGHT, vector<Floor>(WIDTH));
    for (size_t i = 0; i < HEIGHT; ++i)
    {
