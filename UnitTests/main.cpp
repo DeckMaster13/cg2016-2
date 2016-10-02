@@ -3,6 +3,7 @@
 #include "Utilities.h"
 #include "GameLogic.h"
 #include "ReaderWriter.h"
+#include "Game.h"
 
 void testWrapperExecutor(void (*testFunction)())
 {
@@ -55,7 +56,7 @@ static void testIsPositionValid()
 static void testFillBombTilesScoreMap()
 {
    vector<vector<int>> bombTileScoreMap(HEIGHT, vector<int>(WIDTH));
-   vector<vector<Floor>> map(HEIGHT, vector<Floor>(WIDTH));
+   vector<vector<Tile>> map(HEIGHT, vector<Tile>(WIDTH));
 
    vector<GameObject> boxes;
    GameObject obj;
@@ -63,10 +64,10 @@ static void testFillBombTilesScoreMap()
      
    obj.m_coord = Pos(0, 0);
    boxes.push_back(obj);
-   map[obj.m_coord.m_x][obj.m_coord.m_y] = Floor(obj.m_entityType, obj.m_coord, obj.m_turnsBeforeDestruction);
+   map[obj.m_coord.m_x][obj.m_coord.m_y] = Tile(obj.m_coord, obj.m_entityType);
    obj.m_coord = Pos(2, 2);
    boxes.push_back(obj);
-   map[obj.m_coord.m_x][obj.m_coord.m_y] = Floor(obj.m_entityType, obj.m_coord, obj.m_turnsBeforeDestruction);
+   map[obj.m_coord.m_x][obj.m_coord.m_y] = Tile(obj.m_coord, obj.m_entityType);
 
    GameObject me(TYPE_PLAYER, 0, Pos(0, 0), 1, 2);
 
@@ -101,7 +102,7 @@ static void testFillBombTilesScoreMap()
 
    obj.m_entityType = TYPE_WALL;
    obj.m_coord = Pos(1, 2);
-   map[obj.m_coord.m_x][obj.m_coord.m_y] = Floor(obj.m_entityType, obj.m_coord, obj.m_turnsBeforeDestruction);
+   map[obj.m_coord.m_x][obj.m_coord.m_y] = Tile(obj.m_coord, obj.m_entityType);
 
 
    cerr << endl;
@@ -139,7 +140,7 @@ static void testFillBombTilesScoreMap()
    assert(bombTileScoreMap[3][4] == 0);
 
    cerr << endl;
-   map = vector<vector<Floor>>(HEIGHT, vector<Floor>(WIDTH));
+   map = vector<vector<Tile>>(HEIGHT, vector<Tile>(WIDTH));
    bombTileScoreMap = vector<vector<int>>(HEIGHT, vector<int>(WIDTH));
    boxes = vector<GameObject>();
    vector<GameObject> walls;
@@ -148,41 +149,41 @@ static void testFillBombTilesScoreMap()
    obj.m_entityType = TYPE_BOX;
    obj.m_coord = Pos(0, 3);
    boxes.push_back(obj);
-   map[obj.m_coord.m_x][obj.m_coord.m_y] = Floor(obj.m_entityType, obj.m_coord, obj.m_turnsBeforeDestruction);
+   map[obj.m_coord.m_x][obj.m_coord.m_y] = Tile(obj.m_coord, obj.m_entityType);
 
    obj.m_coord = Pos(1, 2);
    boxes.push_back(obj);
-   map[obj.m_coord.m_x][obj.m_coord.m_y] = Floor(obj.m_entityType, obj.m_coord, obj.m_turnsBeforeDestruction);
+   map[obj.m_coord.m_x][obj.m_coord.m_y] = Tile(obj.m_coord, obj.m_entityType);
 
    obj.m_coord = Pos(2, 1);
    boxes.push_back(obj);
-   map[obj.m_coord.m_x][obj.m_coord.m_y] = Floor(obj.m_entityType, obj.m_coord, obj.m_turnsBeforeDestruction);
+   map[obj.m_coord.m_x][obj.m_coord.m_y] = Tile(obj.m_coord, obj.m_entityType);
 
    obj.m_coord = Pos(2, 2);
    boxes.push_back(obj);
-   map[obj.m_coord.m_x][obj.m_coord.m_y] = Floor(obj.m_entityType, obj.m_coord, obj.m_turnsBeforeDestruction);
+   map[obj.m_coord.m_x][obj.m_coord.m_y] = Tile(obj.m_coord, obj.m_entityType);
 
    obj.m_coord = Pos(3, 2);
    boxes.push_back(obj);
-   map[obj.m_coord.m_x][obj.m_coord.m_y] = Floor(obj.m_entityType, obj.m_coord, obj.m_turnsBeforeDestruction);
+   map[obj.m_coord.m_x][obj.m_coord.m_y] = Tile(obj.m_coord, obj.m_entityType);
 
    //WALL
    obj.m_entityType = TYPE_WALL;
    obj.m_coord = Pos(1, 1);
    walls.push_back(obj);
-   map[obj.m_coord.m_x][obj.m_coord.m_y] = Floor(obj.m_entityType, obj.m_coord, obj.m_turnsBeforeDestruction);
+   map[obj.m_coord.m_x][obj.m_coord.m_y] = Tile(obj.m_coord, obj.m_entityType);
 
    obj.m_coord = Pos(1, 3);
    walls.push_back(obj);
-   map[obj.m_coord.m_x][obj.m_coord.m_y] = Floor(obj.m_entityType, obj.m_coord, obj.m_turnsBeforeDestruction);
+   map[obj.m_coord.m_x][obj.m_coord.m_y] = Tile(obj.m_coord, obj.m_entityType);
 
    obj.m_coord = Pos(3, 1);
    walls.push_back(obj);
-   map[obj.m_coord.m_x][obj.m_coord.m_y] = Floor(obj.m_entityType, obj.m_coord, obj.m_turnsBeforeDestruction);
+   map[obj.m_coord.m_x][obj.m_coord.m_y] = Tile(obj.m_coord, obj.m_entityType);
 
    obj.m_coord = Pos(3, 3);
    walls.push_back(obj);
-   map[obj.m_coord.m_x][obj.m_coord.m_y] = Floor(obj.m_entityType, obj.m_coord, obj.m_turnsBeforeDestruction);
+   map[obj.m_coord.m_x][obj.m_coord.m_y] = Tile(obj.m_coord, obj.m_entityType);
 
    fillBombTilesScoreMap(boxes, me, bombTileScoreMap, map);
    write(bombTileScoreMap);
@@ -212,30 +213,96 @@ static void testFillBombTilesScoreMap()
 static void testFindShortestPath()
 {
    GameObject me(TYPE_PLAYER, 0, Pos(0, 0), 0, 0);
-   vector<vector<Floor>> map(HEIGHT, vector<Floor>(WIDTH));
+   vector<vector<Tile>> map(HEIGHT, vector<Tile>(WIDTH));
    for (size_t i = 0; i < HEIGHT; ++i)
    {
       for (size_t j = 0; j < WIDTH; ++j)
       {
-         map[i][j] = Floor(TYPE_NONE, Pos(i,j), 0);
+         map[i][j] = Tile(Pos(i, j), TYPE_NONE);
       }
    }
-   map[0][1].m_type = TYPE_WALL;
-   map[1][1].m_type = TYPE_WALL;
-   map[2][1].m_type = TYPE_WALL;
-   map[3][1].m_type = TYPE_WALL;
+   map[0][1].m_object.m_entityType = TYPE_WALL;
+   map[1][1].m_object.m_entityType = TYPE_WALL;
+   map[2][1].m_object.m_entityType = TYPE_WALL;
+   map[3][1].m_object.m_entityType = TYPE_WALL;
   
    Pos destination = Pos(0,2);
    vector<Pos> res = findShortestPath(me, destination, map);
    write(res);
    assert(res[0] == destination);
 
-   map[3][0].m_type = TYPE_WALL;
+   map[3][0].m_object.m_entityType = TYPE_WALL;
    res = findShortestPath(me, destination, map);
    assert(res.empty());
 
    res = findShortestPath(me, me.m_coord, map);
    assert(res.size() == 1);
+}
+
+static void testCreateTreeNextDepth()
+{
+   Board board;
+
+   for (size_t i = 0; i < HEIGHT; ++i)
+      for (size_t j = 0; j < WIDTH; ++j)
+         board.m_map[i][j] = Tile(Pos(i, j), TYPE_NONE);
+
+   board.m_map[0][1].m_object.m_entityType = TYPE_WALL;
+   board.m_map[1][1].m_object.m_entityType = TYPE_WALL;
+   board.m_map[2][1].m_object.m_entityType = TYPE_WALL;
+   board.m_map[3][1].m_object.m_entityType = TYPE_WALL;
+
+   //WITHOUT BOMBS
+   vector<Node*> initialDepth;
+   board.m_me = GameObject(TYPE_PLAYER, 0, Pos(0, 0), 0, 0);
+   Node* initialNode = new Node(nullptr, Choice(ACTION_MOVE, board.m_me.m_coord), board);
+   initialDepth.push_back(initialNode);
+
+   //WITHOUT BOMBS: turn1
+   vector<Node*> nextDepth = createTreeNextDepth(initialDepth);
+   assert(nextDepth.size() == 2);
+
+   //WITHOUT BOMBS: turn2
+   nextDepth = createTreeNextDepth(nextDepth);
+   assert(nextDepth.size() == 2+3);
+
+   //WITHOUT BOMBS: turn3
+   nextDepth = createTreeNextDepth(nextDepth);
+   assert(nextDepth.size() == 2+3+8);
+
+   //WITH BOMBS
+   initialDepth.clear();
+   board.m_me.m_param1 = 1;
+   initialNode = new Node(nullptr, Choice(ACTION_MOVE, board.m_me.m_coord), board);
+   initialDepth.push_back(initialNode);
+
+   //WITH BOMBS: turn1
+   nextDepth = createTreeNextDepth(initialDepth);
+   assert(nextDepth.size() == 4);
+}
+
+static void testCreateTree()
+{
+   Board board;
+   board.m_me = GameObject(TYPE_PLAYER, 0, Pos(0, 0), 0, 0);
+
+   for (size_t i = 0; i < HEIGHT; ++i)
+      for (size_t j = 0; j < WIDTH; ++j)
+         board.m_map[i][j] = Tile(Pos(i, j), TYPE_NONE);
+
+   board.m_map[0][1].m_object.m_entityType = TYPE_WALL;
+   board.m_map[1][1].m_object.m_entityType = TYPE_WALL;
+   board.m_map[2][1].m_object.m_entityType = TYPE_WALL;
+   board.m_map[3][1].m_object.m_entityType = TYPE_WALL;
+
+   //WITHOUT BOMBS
+   vector<vector<Node*>> tree = createTree(board);
+
+   assert(tree.size() == 4);
+   assert(tree[0].size() == 1);
+   assert(tree[1].size() == 2);
+   assert(tree[2].size() == 5);
+   assert(tree[3].size() == 13);
 }
 
 int main()
@@ -245,5 +312,7 @@ int main()
    testWrapperExecutor(testIsPositionValid);
    testWrapperExecutor(testFillBombTilesScoreMap);
    testWrapperExecutor(testFindShortestPath);
+   testWrapperExecutor(testCreateTreeNextDepth);
+   testWrapperExecutor(testCreateTree);
    return 0;
 }

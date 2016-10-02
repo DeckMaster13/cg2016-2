@@ -1,9 +1,17 @@
+#include <cmath>
+#include <iostream>
+#include <map>
+#include <vector>
 #include <map>
 #include <vector>
 #include <cmath>
 #include <iostream>
+#include <map>
+#include <vector>
 #include <cmath>
 #include <iostream>
+#include <map>
+#include <vector>
 #include <cmath>
 #include <iostream>
 #include <cmath>
@@ -11,6 +19,8 @@
 #include <queue>
 #include <cmath>
 #include <iostream>
+#include <map>
+#include <vector>
 #include <cassert>
 #include <iostream>
 #include <map>
@@ -24,11 +34,15 @@
 #include <vector>
 #include <cmath>
 #include <iostream>
+#include <map>
+#include <vector>
 #include <cmath>
 #include <vector>
 #include <queue>
 #include <cmath>
 #include <iostream>
+#include <map>
+#include <vector>
 #include <cassert>
 #include <algorithm>
 #include <iostream>
@@ -37,11 +51,15 @@
 #include <vector>
 #include <cmath>
 #include <iostream>
+#include <map>
+#include <vector>
 #include <cmath>
 #include <vector>
 #include <queue>
 #include <cmath>
 #include <iostream>
+#include <map>
+#include <vector>
 using namespace std;
 
 class Pos
@@ -137,71 +155,80 @@ enum Type
    TYPE_NONE,
    TYPE_BOX,
    TYPE_BOMB,
-   TYPE_PLAYER,
    TYPE_OBJECT,
-   TYPE_WALL
+   TYPE_WALL,
+   TYPE_PLAYER
 };
 
-struct Floor
+enum Action
 {
-   Floor() = default;
-   Floor(Type type, const Pos& coord, int turnsBeforeDestruction)
-      : m_type(type)
+   ACTION_MOVE,
+   ACTION_BOMB
+};
+
+struct Choice
+{
+   Choice(Action action, const Pos& coord)
+      : m_action(action)
       , m_coord(coord)
-      , m_turnsBeforeDestruction(turnsBeforeDestruction)
    {}
 
-   bool operator<(const Floor& obj) const
-   {
-
-
-
-
-
-      if (m_coord.m_x < obj.m_coord.m_x)
-         return true;
-      else if (m_coord.m_x == obj.m_coord.m_x)
-         return m_coord.m_y < obj.m_coord.m_y;
-
-      return false;
-   }
-
-   Type m_type{ TYPE_NONE };
+   Action m_action{ACTION_MOVE};
    Pos m_coord{};
-   int m_turnsBeforeDestruction{ 0 };
 };
 
-static ostream& operator<<(ostream& os, const Floor& obj)
+ostream& operator<<(ostream& os, const Choice& choice)
 {
-   os << "TYPE: " << obj.m_type << "|";
-   os << "COORD: " << obj.m_coord << "|";
-   os << "TURNSBEFOREDESTR: " << obj.m_turnsBeforeDestruction << "|";
-   os << endl;
+   if (choice.m_action == ACTION_BOMB)
+      os << "BOMB ";
+   else if (choice.m_action == ACTION_MOVE)
+      os << "MOVE ";
+
+   os << choice.m_coord;
+
    return os;
 }
 
-class GameObject
+struct GameObject
 {
-public:
    GameObject(Type entityType, int ownerId, Pos coord, int param1, int param2)
       : m_entityType(entityType)
       , m_ownerId(ownerId)
       , m_coord(coord)
       , m_param1(param1)
       , m_param2(param2)
-      , m_turnsBeforeDestruction(0)
    {}
    GameObject() = default;
    ~GameObject() = default;
 
-public:
    Type m_entityType{TYPE_NONE};
    int m_ownerId{ -1 };
    Pos m_coord{};
    int m_param1{0};
    int m_param2{ 0 };
-   int m_turnsBeforeDestruction{ 0 };
 };
+
+static bool operator<(const GameObject& obj1, const GameObject& obj2)
+{
+   if (obj1.m_coord.m_x != obj2.m_coord.m_x)
+      return obj1.m_coord.m_x < obj2.m_coord.m_x;
+
+   if (obj1.m_coord.m_y != obj2.m_coord.m_y)
+      return obj1.m_coord.m_y < obj2.m_coord.m_y;
+
+   if (obj1.m_entityType != obj2.m_entityType)
+      return obj1.m_entityType < obj2.m_entityType;
+
+   if (obj1.m_ownerId != obj2.m_ownerId)
+      return obj1.m_ownerId < obj2.m_ownerId;
+
+   return false;
+}
+
+static bool operator==(const GameObject& obj1, const GameObject& obj2)
+{
+   return !(obj1 < obj2) && !(obj2 < obj1);
+}
 
 static ostream& operator<<(ostream& os, const GameObject& obj)
 {
@@ -210,10 +237,88 @@ static ostream& operator<<(ostream& os, const GameObject& obj)
    os << "COORD: " << obj.m_coord << "|";
    os << "PARAM1: " << obj.m_param1 << "|";
    os << "PARAM2: " << obj.m_param2 << "|";
-   os << "TURNSBEFOREDESTR: " << obj.m_turnsBeforeDestruction<< "|";
    os << endl;
    return os;
 }
+
+struct Tile
+{
+   Tile() = default;
+   Tile(const Pos& coord, Type type)
+      : m_object(type, -1, coord, 0, 0)
+   {}
+
+   explicit Tile(const GameObject& obj)
+     : m_object(obj)
+   {}
+
+   Type getType() const
+   {
+      return m_object.m_entityType;
+   }
+
+   const Pos& getCoord() const
+   {
+      return m_object.m_coord;
+   }
+
+   int getX() const
+   {
+      return m_object.m_coord.m_x;
+   }
+
+   int getY() const
+   {
+      return m_object.m_coord.m_y;
+   }
+
+   int m_turnsBeforeExplosion{ -1 };
+   GameObject m_object{};
+};
+
+static bool operator<(const Tile& tile1, const Tile& tile2)
+{
+   return tile1.m_object < tile2.m_object;
+}
+
+static ostream& operator<<(ostream& os, const Tile& tile)
+{
+   os << "OBJECT: " << endl;
+   os << tile.m_object.m_entityType << endl;
+   os << endl;
+   return os;
+}
+
+struct Board
+{
+   Board()
+      : m_map(11, vector<Tile>(13))
+   {}
+
+   vector<vector<Tile>> m_map;
+   vector<GameObject> m_bombs;
+   vector<GameObject> m_boxes;
+   vector<GameObject> m_objects;
+   vector<GameObject> m_walls;
+   map<int, GameObject> m_players;
+   GameObject m_me;
+};
+
+struct Node
+{
+   Node() = default;
+
+   Node(Node* previous, const Choice& choice, const Board& newBoard)
+      : m_previous(previous)
+      , m_choice(choice)
+      , m_board(newBoard)
+   {}
+
+   Node* m_previous{ nullptr };
+   Choice m_choice{ACTION_MOVE, Pos()};
+   Board m_board;
+   int m_score{ 0 };
+};
 static int computeDistance(const Pos& pos1, const Pos& pos2)
 {
    return abs(pos1.m_x - pos2.m_x) + abs(pos1.m_y - pos2.m_y);
@@ -239,9 +344,9 @@ static bool isPositionValid(const Pos& pos)
    return pos.m_x >= 0 && pos.m_x < 11 && pos.m_y >= 0 && pos.m_y < 13;
 }
 
-static bool isPositionEmpty(const Floor& object)
+static bool isPositionEmpty(const Tile& tile)
 {
-   return object.m_type != TYPE_BOX && object.m_type != TYPE_BOMB && object.m_type != TYPE_WALL;
+   return tile.getType() != TYPE_BOX && tile.getType() != TYPE_BOMB && tile.getType() != TYPE_WALL;
 }
 
 static int howManyBombsRemaining(const GameObject& me, const std::vector<GameObject>& bombs)
@@ -281,14 +386,14 @@ static int updateTimerBeforeNextBomb(const GameObject& me, const std::vector<Gam
    }
 }
 
-static vector<Floor> getNeighbors(const Floor& current, const vector<vector<Floor>>& map)
+static vector<Tile> getNeighbors(const Tile& current, const vector<vector<Tile>>& map)
 {
-   vector<Floor> res;
+   vector<Tile> res;
 
-   Pos top = current.m_coord + Pos(1, 0);
-   Pos bottom = current.m_coord + Pos(-1, 0);
-   Pos left = current.m_coord + Pos(0, -1);
-   Pos right = current.m_coord + Pos(0, 1);
+   Pos top = current.getCoord() + Pos(1, 0);
+   Pos bottom = current.getCoord() + Pos(-1, 0);
+   Pos left = current.getCoord() + Pos(0, -1);
+   Pos right = current.getCoord() + Pos(0, 1);
 
    if (isPositionValid(top) && isPositionEmpty(map[top.m_x][top.m_y]))
    {
@@ -310,12 +415,12 @@ static vector<Floor> getNeighbors(const Floor& current, const vector<vector<Floo
    return res;
 }
 
-static vector<Pos> findShortestPath(const GameObject& me, const Pos& destination, const vector<vector<Floor>>& map)
+static vector<Pos> findShortestPath(const GameObject& me, const Pos& destination, const vector<vector<Tile>>& map)
 {
    if (me.m_coord == destination) return vector<Pos>(1, destination);
 
-   priority_queue<Floor> frontier;
-   frontier.push(Floor(TYPE_NONE, me.m_coord, 0));
+   priority_queue<Tile> frontier;
+   frontier.push(Tile(me.m_coord, TYPE_NONE));
    vector<vector<Pos*>> cameFrom(11, vector<Pos*>(13, nullptr));
    vector<vector<int>> costSoFar(11, vector<int>(13, -1));
 
@@ -324,20 +429,20 @@ static vector<Pos> findShortestPath(const GameObject& me, const Pos& destination
 
    while (!frontier.empty())
    {
-      Floor current = frontier.top();
+      Tile current = frontier.top();
       frontier.pop();
 
-      if (current.m_coord == destination) break;
+      if (current.getCoord() == destination) break;
 
       for (auto next : getNeighbors(current, map))
       {
-         int newCost = costSoFar[current.m_coord.m_x][current.m_coord.m_y] + 1;
-         if (costSoFar[next.m_coord.m_x][next.m_coord.m_y] == -1 || newCost < costSoFar[next.m_coord.m_x][next.m_coord.m_y])
+         int newCost = costSoFar[current.getX()][current.getY()] + 1;
+         if (costSoFar[next.getX()][next.getY()] == -1 || newCost < costSoFar[next.getX()][next.getY()])
          {
-            costSoFar[next.m_coord.m_x][next.m_coord.m_y] = newCost;
+            costSoFar[next.getX()][next.getY()] = newCost;
 
             frontier.push(next);
-            cameFrom[next.m_coord.m_x][next.m_coord.m_y] = new Pos(current.m_coord);
+            cameFrom[next.getX()][next.getY()] = new Pos(current.getCoord());
          }
       }
 
@@ -368,20 +473,11 @@ static vector<Pos> findShortestPath(const GameObject& me, const Pos& destination
    return res;
 }
 
-static int willDieInXTurns()
-{
-   int turnsBeforeDying = 0;
-
-
-
-   return turnsBeforeDying;
-}
-
 
 
 using namespace std;
 
-static void computeBombTileScore(const Pos& boxCoord, int rangeDeltaX, int rangeDeltaY, vector<vector<int>>& bombTileScoreMap, const vector<vector<Floor>>& map)
+static void computeBombTileScore(const Pos& boxCoord, int rangeDeltaX, int rangeDeltaY, vector<vector<int>>& bombTileScoreMap, const vector<vector<Tile>>& map)
 {
    Pos delta(0, 0);
    int i = 0;
@@ -391,8 +487,8 @@ static void computeBombTileScore(const Pos& boxCoord, int rangeDeltaX, int range
       Pos newCoord = boxCoord + delta;
       if (isPositionValid(newCoord) && newCoord != boxCoord)
       {
-         const Floor& newFloor = map[newCoord.m_x][newCoord.m_y];
-         if (newFloor.m_type == TYPE_BOX || newFloor.m_type == TYPE_BOMB || newFloor.m_type == TYPE_WALL)
+         const Tile& newTile = map[newCoord.m_x][newCoord.m_y];
+         if (newTile.getType() == TYPE_BOX || newTile.getType() == TYPE_BOMB || newTile.getType() == TYPE_WALL)
          {
 
             break;
@@ -417,7 +513,7 @@ static void computeBombTileScore(const Pos& boxCoord, int rangeDeltaX, int range
 
 }
 
-static void fillBombTilesScoreMap(const vector<GameObject>& boxes, const GameObject& me, vector<vector<int>>& bombTileScoreMap, const vector<vector<Floor>>& map)
+static void fillBombTilesScoreMap(const vector<GameObject>& boxes, const GameObject& me, vector<vector<int>>& bombTileScoreMap, const vector<vector<Tile>>& map)
 {
    for (const auto& box : boxes)
    {
@@ -428,7 +524,7 @@ static void fillBombTilesScoreMap(const vector<GameObject>& boxes, const GameObj
    }
 }
 
-static void updateTurnBeforeDestructionOnALine(const GameObject& bomb, int rangeDeltaX, int rangeDeltaY, vector<vector<Floor>>& map)
+static void updateTurnBeforeDestructionOnALine(const GameObject& bomb, int rangeDeltaX, int rangeDeltaY, vector<vector<Tile>>& map)
 {
    Pos delta(-rangeDeltaX, -rangeDeltaY);
    int i = 0;
@@ -438,7 +534,7 @@ static void updateTurnBeforeDestructionOnALine(const GameObject& bomb, int range
       if (isPositionValid(newCoord) && newCoord != bomb.m_coord)
       {
          assert(bomb.m_param1 >= 0);
-         map[newCoord.m_x][newCoord.m_y].m_turnsBeforeDestruction = bomb.m_param1;
+         map[newCoord.m_x][newCoord.m_y].m_turnsBeforeExplosion = bomb.m_param1;
       }
       delta += Pos(rangeDeltaX != 0, rangeDeltaY != 0);
       ++i;
@@ -446,7 +542,7 @@ static void updateTurnBeforeDestructionOnALine(const GameObject& bomb, int range
 
 }
 
-static void updateTurnsBeforeDestruction(const vector<GameObject>& bombs, map<int, GameObject>& players, vector<vector<Floor>>& map)
+static void updateTurnsBeforeDestruction(const vector<GameObject>& bombs, map<int, GameObject>& players, vector<vector<Tile>>& map)
 {
    for (const auto& bomb : bombs)
    {
@@ -454,6 +550,55 @@ static void updateTurnsBeforeDestruction(const vector<GameObject>& bombs, map<in
       updateTurnBeforeDestructionOnALine(bomb, player.m_param2, 0, map);
       updateTurnBeforeDestructionOnALine(bomb, 0, player.m_param2, map);
    }
+}
+
+static Node* applyChoice(Node* previousNode, Choice choice)
+{
+   assert(previousNode != nullptr);
+   Board newBoard(previousNode->m_board);
+   GameObject& me = newBoard.m_me;
+
+   if (choice.m_action == ACTION_BOMB)
+   {
+      GameObject bomb(TYPE_BOMB, me.m_ownerId, me.m_coord, 8, me.m_param2);
+      newBoard.m_bombs.push_back(bomb);
+      newBoard.m_map[choice.m_coord.m_x][choice.m_coord.m_y] = Tile(bomb);
+      me.m_param1--;
+   }
+
+
+   me.m_coord = choice.m_coord;
+
+
+   for (auto& bomb : newBoard.m_bombs)
+   {
+      bomb.m_param1--;
+   }
+   updateTurnsBeforeDestruction(newBoard.m_bombs, newBoard.m_players, newBoard.m_map);
+
+   for (auto& row : newBoard.m_map)
+      for (auto& tile : row)
+         if (tile.m_turnsBeforeExplosion == 0)
+         {
+            tile.m_turnsBeforeExplosion = -1;
+            switch (tile.m_object.m_entityType)
+            {
+            case TYPE_BOMB:
+               newBoard.m_bombs.erase(std::remove(newBoard.m_bombs.begin(), newBoard.m_bombs.end(), tile.m_object), newBoard.m_bombs.end());
+               break;
+            case TYPE_BOX:
+               newBoard.m_boxes.erase(std::remove(newBoard.m_boxes.begin(), newBoard.m_boxes.end(), tile.m_object), newBoard.m_boxes.end());
+               break;
+            case TYPE_OBJECT:
+               newBoard.m_objects.erase(std::remove(newBoard.m_objects.begin(), newBoard.m_objects.end(), tile.m_object), newBoard.m_objects.end());
+               break;
+            default:
+               break;
+            }
+         }
+
+
+   return new Node(previousNode, choice, newBoard);
 }
 using namespace std;
 
@@ -502,35 +647,40 @@ public:
       {
          string row;
          getline(cin, row);
-         m_map.push_back(vector<Floor>(settings.m_width));
+         m_map.push_back(vector<Tile>(settings.m_width));
          for (size_t j = 0; j < row.size(); ++j)
          {
             if (row[j] == '0')
             {
-
-               m_map[i][j] = Floor(TYPE_BOX, Pos(i,j), 0);
-
                GameObject box(TYPE_BOX, -1, Pos(i,j), 0, 0);
+               m_map[i][j] = Tile(box);
+
                m_boxes.push_back(box);
             }
             else if (row[j] == '.')
             {
-               m_map[i][j] = Floor(TYPE_NONE, Pos(i, j), 0);
+               m_map[i][j] = Tile(Pos(i, j), TYPE_NONE);
             }
             else if (row[j] == '1')
             {
-               m_map[i][j] = Floor(TYPE_BOX, Pos(i, j), 0);
-               m_boxes.push_back(GameObject(TYPE_BOX, -1, Pos(i, j), 1, 0));
+               GameObject box(TYPE_BOX, -1, Pos(i, j), 1, 0);
+               m_map[i][j] = Tile(box);
+
+               m_boxes.push_back(box);
             }
             else if (row[j] == '2')
             {
-               m_map[i][j] = Floor(TYPE_BOX, Pos(i, j), 0);
-               m_boxes.push_back(GameObject(TYPE_BOX, -1, Pos(i, j), 2, 0));
+               GameObject box(TYPE_BOX, -1, Pos(i, j), 2, 0);
+               m_map[i][j] = Tile(box);
+
+               m_boxes.push_back(box);
             }
             else if (row[j] == 'X')
             {
-               m_map[i][j] = Floor(TYPE_WALL, Pos(i, j), 0);
-               m_walls.push_back(GameObject(TYPE_WALL, -1, Pos(i, j), 0, 0));
+               GameObject wall(TYPE_BOX, -1, Pos(i, j), 0, 0);
+               m_map[i][j] = Tile(wall);
+
+               m_walls.push_back(wall);
             }
          }
       }
@@ -566,31 +716,31 @@ public:
             break;
          }
 
-         GameObject object(enumEntityType, owner, Pos(y, x), param1, param2);
+         GameObject obj(enumEntityType, owner, Pos(y,x), param1, param2);
          if (enumEntityType == TYPE_BOMB)
          {
-            m_bombs.push_back(object);
-            m_map[y][x] = Floor(TYPE_BOMB, Pos(y, x), 0);
+            m_map[y][x] = Tile(obj);
+            m_bombs.push_back(obj);
          }
          else if (enumEntityType == TYPE_OBJECT)
          {
-            m_objects.push_back(object);
-            m_map[y][x] = Floor(TYPE_OBJECT, Pos(y, x), 0);
+            m_map[y][x] = Tile(obj);
+            m_objects.push_back(obj);
          }
          else if (enumEntityType == TYPE_PLAYER)
          {
 
-            m_players[object.m_ownerId] = object;
-            if (object.m_ownerId == settings.m_myId)
+            m_players[obj.m_ownerId] = obj;
+            if (obj.m_ownerId == settings.m_myId)
             {
-               m_me = object;
+               m_me = obj;
             }
          }
       }
    }
 
 public:
- vector<vector<Floor>> m_map;
+ vector<vector<Tile>> m_map;
    vector<GameObject> m_bombs;
    vector<GameObject> m_boxes;
    vector<GameObject> m_objects;
@@ -606,9 +756,9 @@ std::ostream& operator<<(std::ostream& os, const TurnInput& obj)
  for (const auto& line: obj.m_map)
  {
       cerr << "|";
-      for (const auto& floor : line)
+      for (const auto& tile : line)
       {
-         switch (floor.m_type)
+         switch (tile.getType())
          {
          case TYPE_NONE:
             cerr << "   ";
@@ -714,91 +864,101 @@ public:
 
    void updateOnNewTurn(const TurnInput& turnInput)
    {
-
-      m_map = turnInput.m_map;
-      m_bombs = turnInput.m_bombs;
-      m_boxes = turnInput.m_boxes;
-      m_objects = turnInput.m_objects;
-
-
-      m_me = turnInput.m_me;
-      m_players = turnInput.m_players;
-
-      m_bombTileScoresMap = vector<vector<int>>(11, vector<int>(13));
-
-      updateTurnsBeforeDestruction(m_bombs, m_players, m_map);
-      m_timerBeforeNextBomb = updateTimerBeforeNextBomb(m_me, m_bombs);
-      fillBombTilesScoreMap(m_boxes, m_me, m_bombTileScoresMap, m_map);
+      m_board.m_map = turnInput.m_map;
+      m_board.m_bombs = turnInput.m_bombs;
+      m_board.m_boxes = turnInput.m_boxes;
+      m_board.m_objects = turnInput.m_objects;
+      m_board.m_me = turnInput.m_me;
+      m_board.m_players = turnInput.m_players;
    }
 
 public:
-   vector<vector<Floor>> m_map;
-   vector<vector<int>> m_bombTileScoresMap;
-   vector<GameObject> m_bombs;
-   vector<GameObject> m_boxes;
-   vector<GameObject> m_objects;
-   vector<GameObject> m_walls;
-   GameObject m_me;
-   int m_timerBeforeNextBomb;
-   Pos m_objective{Pos(0,0)};
-   Type m_objectiveType{TYPE_OBJECT};
-   vector<Pos> m_objectiveShortestPath;
-   map<int, GameObject> m_players;
+   Board m_board;
+   vector<vector<Node*>> m_graph;
 };
 using namespace std;
-
-static void fillScore(int& score, int& explosionScore, const Floor& targetFloor, int bombScore, int emptyFloorBonus, int distance)
+static void rankNode(Node* node)
 {
-   int distanceMalus = distance*distance;
-   int objectBonus = targetFloor.m_type == TYPE_OBJECT ? 50 : 0;
-   int explosionMalus = targetFloor.m_turnsBeforeDestruction != 0 ? 500 * 1 / ((targetFloor.m_turnsBeforeDestruction - 0.5)*(targetFloor.m_turnsBeforeDestruction - 0.5)) : 0;
-   int bombScoreBonus = bombScore > 0 ? (bombScore + 2)*(bombScore + 2) : 0;
+   assert(node != nullptr);
+   const Board& board = node->m_board;
+   const GameObject& me = board.m_me;
+   const vector<vector<Tile>>& map = board.m_map;
+   const Tile& targetTile = map[me.m_coord.m_x][me.m_coord.m_y];
 
-   explosionScore = emptyFloorBonus + bombScoreBonus - distanceMalus;
-   score = emptyFloorBonus + bombScoreBonus + objectBonus - explosionMalus - distanceMalus;
+   node->m_score = node->m_previous ? node->m_previous->m_score : 0;
+
+   if (targetTile.m_turnsBeforeExplosion >= 0)
+   {
+      if (targetTile.m_turnsBeforeExplosion == 0)
+         node->m_score -= 2000;
+      else if (targetTile.m_turnsBeforeExplosion > 0)
+         node->m_score -= 400 * 1 / ((targetTile.m_turnsBeforeExplosion - 0.5)*(targetTile.m_turnsBeforeExplosion - 0.5));
+   }
+
+   if (me.m_param1 == 0)
+   {
+      node->m_score += 500;
+   }
 }
 
-static string decideActionToDo(const GameState& state, int distanceToObjective, bool& shouldChangeObjective)
+static vector<Node*> createTreeNextDepth(const vector<Node*>& currentDepth)
 {
-   string actionToDo = "MOVE";
-   if ((distanceToObjective == 0 || distanceToObjective == 1) && state.m_objectiveType == TYPE_OBJECT)
+   vector<Node*> newDepth;
+   for (Node* node : currentDepth)
    {
-      actionToDo = "MOVE";
-      shouldChangeObjective = true;
+      const Board& board = node->m_board;
+      const GameObject& me = board.m_me;
+      const Pos& myPos = me.m_coord;
+      Node* newNode = applyChoice(node, Choice(ACTION_MOVE, myPos));
+      newDepth.push_back(newNode);
+      if (me.m_param1 > 0)
+      {
+         newNode = applyChoice(node, Choice(ACTION_BOMB, myPos));
+         newDepth.push_back(newNode);
+      }
+
+      vector<Tile> currentNeighbors = getNeighbors(board.m_map[myPos.m_x][myPos.m_y], board.m_map);
+      for (const auto& neighbor : currentNeighbors)
+      {
+
+         newNode = applyChoice(node, Choice(ACTION_MOVE, neighbor.getCoord()));
+         newDepth.push_back(newNode);
+         if (me.m_param1 > 0)
+         {
+            newNode = applyChoice(node, Choice(ACTION_BOMB, neighbor.getCoord()));
+            newDepth.push_back(newNode);
+         }
+      }
    }
-   else if (distanceToObjective == 0 && state.m_objectiveType == TYPE_BOMB)
-   {
-      actionToDo = "BOMB";
-      shouldChangeObjective = true;
-   }
-   return actionToDo;
+   return newDepth;
 }
 
-static string decidePlaceToGo(GameState& state)
+static vector<vector<Node*>> createTree(const Board& board)
 {
-   string placeToGo = "0 0";
-   if (!state.m_objectiveShortestPath.empty())
+   const Pos& myPos = board.m_me.m_coord;
+
+   vector<vector<Node*>> tree;
+   vector<Node*> initialDepth;
+   Node* initialNode = new Node(nullptr, Choice(ACTION_MOVE, myPos), board);
+   initialDepth.push_back(initialNode);
+   tree.push_back(initialDepth);
+
+   vector<Node*> currentDepth = initialDepth;
+   while (tree.size() < 4)
    {
-      ostringstream os;
-      os << state.m_objectiveShortestPath.back();
-      state.m_objectiveShortestPath.pop_back();
-      placeToGo = os.str();
+      vector<Node*> newDepth = createTreeNextDepth(currentDepth);
+      tree.push_back(newDepth);
+      currentDepth = newDepth;
    }
-   else
-   {
-      ostringstream os;
-      os << state.m_me.m_coord;
-      placeToGo = os.str();
-   }
-   return placeToGo;
+
+   return tree;
 }
 
-static void changeObjective(GameState& state, vector<vector<vector<Pos>>>& shortestPaths, const Pos& bestObjectiveSoFar, const Pos& bestExplosionSoFar)
+static void rankTree(vector<vector<Node*>>& tree)
 {
-   state.m_objective = bestObjectiveSoFar;
-   shortestPaths.pop_back();
-   state.m_objectiveShortestPath = shortestPaths[state.m_objective.m_x][state.m_objective.m_y];
-   state.m_objectiveType = computeDistance(bestObjectiveSoFar, bestExplosionSoFar) == 0 ? TYPE_BOMB : TYPE_OBJECT;
+   for (auto& depth : tree)
+      for (Node* node : depth)
+         rankNode(node);
 }
 
 class Game
@@ -808,81 +968,31 @@ public:
   : m_state(state)
  {}
 
-   string play()
+   string takeActionToDo(const vector<vector<Node*>>& tree)
    {
-      int numberOfPathsFound = 0;
-      vector<vector<int>> bestScores(11, vector<int>(13));
-      vector<vector<int>> bestExplosionScores(11, vector<int>(13));
-      vector<vector<vector<Pos>>> shortestPaths(11, vector<vector<Pos>>(13));
-      int bestScoreSoFar = std::numeric_limits<int>::min();
-      int bestExplosionScoreSoFar = std::numeric_limits<int>::min();
-      Pos bestObjectiveSoFar = Pos(0, 0);
-      Pos bestExplosionSoFar = Pos(0, 0);
-
-
-
-      if (computeDistance(m_state.m_me, m_state.m_objective) == 1)
+      const auto& lastDepth = tree.back();
+      Node* bestNode = nullptr;
+      int maxScore = 0;
+      for (Node* node : lastDepth)
       {
-         updateTurnBeforeDestructionOnALine(GameObject(TYPE_BOMB, m_state.m_me.m_ownerId, m_state.m_objective, 9, 0), m_state.m_me.m_param2, m_state.m_me.m_param2, m_state.m_map);
-      }
-
-
-      for (size_t i = 0; i < 11; ++i)
-      {
-         for (size_t j = 0; j < 13; ++j)
+         if (node->m_score >= maxScore)
          {
-            const Floor& targetFloor = m_state.m_map[i][j];
-            if (!isPositionValid(targetFloor.m_coord) || !isPositionEmpty(targetFloor)) continue;
-            int emptyFloorBonus = 10;
-
-
-            shortestPaths[i][j] = findShortestPath(m_state.m_me, targetFloor.m_coord, m_state.m_map);
-            if (shortestPaths[i][j].empty()) continue;
-            numberOfPathsFound++;
-            int distance = shortestPaths[i][j].size() - 1;
-
-
-            fillScore(bestScores[i][j], bestExplosionScores[i][j], targetFloor, m_state.m_bombTileScoresMap[i][j], emptyFloorBonus, distance);
-            if (bestExplosionScoreSoFar < bestExplosionScores[i][j])
-            {
-               bestExplosionScoreSoFar = bestExplosionScores[i][j];
-               bestExplosionSoFar = Pos(i, j);
-            }
-
-
-            if (bestScoreSoFar < bestScores[i][j])
-            {
-               bestScoreSoFar = bestScores[i][j];
-               bestObjectiveSoFar = Pos(i, j);
-            }
+            maxScore = node->m_score;
+            bestNode = node;
          }
       }
 
-      cerr << endl;
-      write(bestScores);
-      cerr << endl;
-      cerr << "numberOfPathsFound: " << numberOfPathsFound << endl;
-
-
-
-
-
-
-      int distanceToObjective = computeDistance(m_state.m_objective, m_state.m_me.m_coord);
-      if (shortestPaths.empty())
+      cerr << "maxScore: " << maxScore << endl;
+      Node* currentNode = bestNode;
+      Node* previousNode = bestNode->m_previous;
+      while (previousNode != nullptr && previousNode->m_previous != nullptr)
       {
-         changeObjective(m_state, shortestPaths, bestObjectiveSoFar, bestExplosionSoFar);
+         currentNode = previousNode;
+         previousNode = currentNode->m_previous;
       }
-      bool shouldChangeObjective = false;
-      string actionToDo = decideActionToDo(m_state, distanceToObjective, shouldChangeObjective);
-      string placeToGo = decidePlaceToGo(m_state);
+
       ostringstream os;
-      os << actionToDo << " " << placeToGo << " " << actionToDo << " " << placeToGo;
-      if (shouldChangeObjective)
-      {
-         changeObjective(m_state, shortestPaths, bestObjectiveSoFar, bestExplosionSoFar);
-         os << "*" << " >> " << bestObjectiveSoFar;
-      }
+      os << currentNode->m_choice;
       return os.str();
    }
 
@@ -895,8 +1005,19 @@ public:
  {
 
 
-      string output = play();
-      cout << output << endl;
+      vector<vector<Node*>> futureTree = createTree(m_state.m_board);
+      rankTree(futureTree);
+      string output = takeActionToDo(futureTree);
+      cout << output << " " << output << endl;
+
+
+      for (auto& depth : futureTree)
+      {
+         for (auto* Node : depth)
+         {
+            delete Node;
+         }
+      }
  }
 
 public:

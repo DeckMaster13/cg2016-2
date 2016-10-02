@@ -58,35 +58,40 @@ public:
       {
          string row;
          getline(cin, row);
-         m_map.push_back(vector<Floor>(settings.m_width));
+         m_map.push_back(vector<Tile>(settings.m_width));
          for (size_t j = 0; j < row.size(); ++j)
          {
             if (row[j] == '0')
             {
-               //cerr << i << "|" << j << endl;
-               m_map[i][j] = Floor(TYPE_BOX, Pos(i,j), 0);
-
                GameObject box(TYPE_BOX, -1, Pos(i,j), 0, 0);
+               m_map[i][j] = Tile(box);
+
                m_boxes.push_back(box);
             }
             else if (row[j] == '.')
             {
-               m_map[i][j] = Floor(TYPE_NONE, Pos(i, j), 0);
+               m_map[i][j] = Tile(Pos(i, j), TYPE_NONE);
             }
             else if (row[j] == '1')
             {
-               m_map[i][j] = Floor(TYPE_BOX, Pos(i, j), 0);
-               m_boxes.push_back(GameObject(TYPE_BOX, -1, Pos(i, j), 1, 0));
+               GameObject box(TYPE_BOX, -1, Pos(i, j), 1, 0);
+               m_map[i][j] = Tile(box);
+
+               m_boxes.push_back(box);
             }
             else if (row[j] == '2')
             {
-               m_map[i][j] = Floor(TYPE_BOX, Pos(i, j), 0);
-               m_boxes.push_back(GameObject(TYPE_BOX, -1, Pos(i, j), 2, 0));
+               GameObject box(TYPE_BOX, -1, Pos(i, j), 2, 0);
+               m_map[i][j] = Tile(box);
+
+               m_boxes.push_back(box);
             }
             else if (row[j] == 'X')
             {
-               m_map[i][j] = Floor(TYPE_WALL, Pos(i, j), 0);
-               m_walls.push_back(GameObject(TYPE_WALL, -1, Pos(i, j), 0, 0));
+               GameObject wall(TYPE_BOX, -1, Pos(i, j), 0, 0);
+               m_map[i][j] = Tile(wall);
+
+               m_walls.push_back(wall);
             }
          }
       }
@@ -122,31 +127,31 @@ public:
             break;
          }
 
-         GameObject object(enumEntityType, owner, Pos(y, x), param1, param2);
+         GameObject obj(enumEntityType, owner, Pos(y,x), param1, param2);
          if (enumEntityType == TYPE_BOMB)
          {
-            m_bombs.push_back(object);
-            m_map[y][x] = Floor(TYPE_BOMB, Pos(y, x), 0);
+            m_map[y][x] = Tile(obj);
+            m_bombs.push_back(obj);
          }
          else if (enumEntityType == TYPE_OBJECT)
          {
-            m_objects.push_back(object);
-            m_map[y][x] = Floor(TYPE_OBJECT, Pos(y, x), 0);
+            m_map[y][x] = Tile(obj);
+            m_objects.push_back(obj);
          }
          else if (enumEntityType == TYPE_PLAYER)
          {
-            //cerr << "TYPE PLAYER" << endl;
-            m_players[object.m_ownerId] = object;
-            if (object.m_ownerId == settings.m_myId)
+            //WE DO NOT ADD PLAYERS TO THE MAP
+            m_players[obj.m_ownerId] = obj;
+            if (obj.m_ownerId == settings.m_myId)
             {
-               m_me = object;
+               m_me = obj;
             }
          }
       }
    }
 
 public:
-	vector<vector<Floor>> m_map;
+	vector<vector<Tile>> m_map;
    vector<GameObject> m_bombs;
    vector<GameObject> m_boxes;
    vector<GameObject> m_objects;
@@ -162,9 +167,9 @@ std::ostream& operator<<(std::ostream& os, const TurnInput& obj)
 	for (const auto& line: obj.m_map)
 	{
       cerr << "|";
-      for (const auto& floor : line)
+      for (const auto& tile : line)
       {
-         switch (floor.m_type)
+         switch (tile.getType())
          {
          case TYPE_NONE:
             cerr << "   ";

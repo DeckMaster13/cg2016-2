@@ -32,9 +32,9 @@ static bool isPositionValid(const Pos& pos)
    return pos.m_x >= 0 && pos.m_x < HEIGHT && pos.m_y >= 0 && pos.m_y < WIDTH;
 }
 
-static bool isPositionEmpty(const Floor& object)
+static bool isPositionEmpty(const Tile& tile)
 {
-   return object.m_type != TYPE_BOX && object.m_type != TYPE_BOMB && object.m_type != TYPE_WALL;
+   return tile.getType() != TYPE_BOX && tile.getType() != TYPE_BOMB && tile.getType() != TYPE_WALL;
 }
 
 static int howManyBombsRemaining(const GameObject& me, const std::vector<GameObject>& bombs)
@@ -74,14 +74,14 @@ static int updateTimerBeforeNextBomb(const GameObject& me, const std::vector<Gam
    }
 }
 
-static vector<Floor> getNeighbors(const Floor& current, const vector<vector<Floor>>& map)
+static vector<Tile> getNeighbors(const Tile& current, const vector<vector<Tile>>& map)
 {
-   vector<Floor> res;
+   vector<Tile> res;
 
-   Pos top = current.m_coord + Pos(1, 0);
-   Pos bottom = current.m_coord + Pos(-1, 0);
-   Pos left = current.m_coord + Pos(0, -1);
-   Pos right = current.m_coord + Pos(0, 1);
+   Pos top = current.getCoord() + Pos(1, 0);
+   Pos bottom = current.getCoord() + Pos(-1, 0);
+   Pos left = current.getCoord() + Pos(0, -1);
+   Pos right = current.getCoord() + Pos(0, 1);
 
    if (isPositionValid(top) && isPositionEmpty(map[top.m_x][top.m_y]))
    {
@@ -103,12 +103,12 @@ static vector<Floor> getNeighbors(const Floor& current, const vector<vector<Floo
    return res;
 }
 
-static vector<Pos> findShortestPath(const GameObject& me, const Pos& destination, const vector<vector<Floor>>& map)
+static vector<Pos> findShortestPath(const GameObject& me, const Pos& destination, const vector<vector<Tile>>& map)
 {
    if (me.m_coord == destination) return vector<Pos>(1, destination);
   
-   priority_queue<Floor> frontier;
-   frontier.push(Floor(TYPE_NONE, me.m_coord, 0));
+   priority_queue<Tile> frontier;
+   frontier.push(Tile(me.m_coord, TYPE_NONE));
    vector<vector<Pos*>> cameFrom(HEIGHT, vector<Pos*>(WIDTH, nullptr));
    vector<vector<int>> costSoFar(HEIGHT, vector<int>(WIDTH, -1));
 
@@ -117,20 +117,20 @@ static vector<Pos> findShortestPath(const GameObject& me, const Pos& destination
 
    while (!frontier.empty())
    {
-      Floor current = frontier.top();
+      Tile current = frontier.top();
       frontier.pop();
 
-      if (current.m_coord == destination) break;
+      if (current.getCoord() == destination) break;
 
       for (auto next : getNeighbors(current, map))
       {
-         int newCost = costSoFar[current.m_coord.m_x][current.m_coord.m_y] + 1;//cost to next == 1
-         if (costSoFar[next.m_coord.m_x][next.m_coord.m_y] == -1 || newCost < costSoFar[next.m_coord.m_x][next.m_coord.m_y])
+         int newCost = costSoFar[current.getX()][current.getY()] + 1;//cost to next == 1
+         if (costSoFar[next.getX()][next.getY()] == -1 || newCost < costSoFar[next.getX()][next.getY()])
          {
-            costSoFar[next.m_coord.m_x][next.m_coord.m_y] = newCost;
+            costSoFar[next.getX()][next.getY()] = newCost;
             //int priority = newCost + 0;//heuristic cost between next and goal
             frontier.push(next);
-            cameFrom[next.m_coord.m_x][next.m_coord.m_y] = new Pos(current.m_coord);
+            cameFrom[next.getX()][next.getY()] = new Pos(current.getCoord());
          }
       }
 
@@ -159,15 +159,6 @@ static vector<Pos> findShortestPath(const GameObject& me, const Pos& destination
 
    }
    return res;
-}
-
-static int willDieInXTurns()
-{
-   int turnsBeforeDying = 0;
-
-
-
-   return turnsBeforeDying;
 }
 
 #endif

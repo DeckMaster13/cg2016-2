@@ -1,63 +1,105 @@
 #ifndef __GAME_H__
 #define __GAME_H__
 
+#include "GameEntities.h"
 #include "GameState.h"
 #include "ReaderWriter.h"
 
 using namespace std;
 
-static void fillScore(int& score, int& explosionScore, const Floor& targetFloor, int bombScore, int emptyFloorBonus, int distance)
-{
-   int distanceMalus = distance*distance;
-   int objectBonus = targetFloor.m_type == TYPE_OBJECT ? 50 : 0;
-   int explosionMalus = targetFloor.m_turnsBeforeDestruction != 0 ? 500 * 1 / ((targetFloor.m_turnsBeforeDestruction - 0.5)*(targetFloor.m_turnsBeforeDestruction - 0.5)) : 0;
-   int bombScoreBonus = bombScore > 0 ? (bombScore + 2)*(bombScore + 2) : 0;
+//static void fillScore(int& score, int& explosionScore, const Floor& targetFloor, int bombScore, int emptyFloorBonus, int distance)
+//{
+//   int distanceMalus = distance*distance;
+//   int objectBonus = targetFloor.m_type == TYPE_OBJECT ? 50 : 0;
+//   int explosionMalus = targetFloor.m_turnsBeforeDestruction != 0 ? 500 * 1 / ((targetFloor.m_turnsBeforeDestruction - 0.5)*(targetFloor.m_turnsBeforeDestruction - 0.5)) : 0;
+//   int bombScoreBonus = bombScore > 0 ? (bombScore + 2)*(bombScore + 2) : 0;
+//
+//   explosionScore = emptyFloorBonus + bombScoreBonus - distanceMalus;
+//   score = emptyFloorBonus + bombScoreBonus + objectBonus - explosionMalus - distanceMalus;
+//}
 
-   explosionScore = emptyFloorBonus + bombScoreBonus - distanceMalus;
-   score = emptyFloorBonus + bombScoreBonus + objectBonus - explosionMalus - distanceMalus;
+static void rankNode(Node* node)
+{
+   assert(node != nullptr);
+   const Board& board = node->m_board;
+   const GameObject& me = board.m_me;
+   const vector<vector<Tile>>& map = board.m_map;
+   const Tile& targetTile = map[me.m_coord.m_x][me.m_coord.m_y];
+
+   node->m_score = node->m_previous ? node->m_previous->m_score : 0;
+   
+   if (targetTile.m_turnsBeforeExplosion >= 0)
+   {
+      if (targetTile.m_turnsBeforeExplosion == 0)
+         node->m_score -= 2000;
+      else if (targetTile.m_turnsBeforeExplosion > 0)
+         node->m_score -= 400 * 1 / ((targetTile.m_turnsBeforeExplosion - 0.5)*(targetTile.m_turnsBeforeExplosion - 0.5));
+   }
+
+   if (me.m_param1 == 0)
+   {
+      node->m_score += 500;
+   }
 }
 
-static string decideActionToDo(const GameState& state, int distanceToObjective, bool& shouldChangeObjective)
+static vector<Node*> createTreeNextDepth(const vector<Node*>& currentDepth)
 {
-   string actionToDo = "MOVE";
-   if ((distanceToObjective == 0 || distanceToObjective == 1) && state.m_objectiveType == TYPE_OBJECT)
+   vector<Node*> newDepth;
+   for (Node* node : currentDepth)
    {
-      actionToDo = "MOVE";
-      shouldChangeObjective = true;
+      const Board& board = node->m_board;
+      const GameObject& me = board.m_me;
+      const Pos& myPos = me.m_coord;
+      Node* newNode = applyChoice(node, Choice(ACTION_MOVE, myPos));
+      newDepth.push_back(newNode);
+      if (me.m_param1 > 0)
+      {
+         newNode = applyChoice(node, Choice(ACTION_BOMB, myPos));
+         newDepth.push_back(newNode);
+      }
+
+      vector<Tile> currentNeighbors = getNeighbors(board.m_map[myPos.m_x][myPos.m_y], board.m_map);
+      for (const auto& neighbor : currentNeighbors)
+      {
+         //they are reachable
+         newNode = applyChoice(node, Choice(ACTION_MOVE, neighbor.getCoord()));
+         newDepth.push_back(newNode);
+         if (me.m_param1 > 0)
+         {
+            newNode = applyChoice(node, Choice(ACTION_BOMB, neighbor.getCoord()));
+            newDepth.push_back(newNode);
+         }
+      }
    }
-   else if (distanceToObjective == 0 && state.m_objectiveType == TYPE_BOMB)
-   {
-      actionToDo = "BOMB";
-      shouldChangeObjective = true;
-   }
-   return actionToDo;
+   return newDepth;
 }
 
-static string decidePlaceToGo(GameState& state)
+static vector<vector<Node*>> createTree(const Board& board)
 {
-   string placeToGo = "0 0";
-   if (!state.m_objectiveShortestPath.empty())
+   const Pos& myPos = board.m_me.m_coord;
+
+   vector<vector<Node*>> tree;
+   vector<Node*> initialDepth;
+   Node* initialNode = new Node(nullptr, Choice(ACTION_MOVE, myPos), board);
+   initialDepth.push_back(initialNode);
+   tree.push_back(initialDepth);
+
+   vector<Node*> currentDepth = initialDepth;
+   while (tree.size() < 4)
    {
-      ostringstream os;
-      os << state.m_objectiveShortestPath.back();
-      state.m_objectiveShortestPath.pop_back();
-      placeToGo = os.str();
+      vector<Node*> newDepth = createTreeNextDepth(currentDepth);
+      tree.push_back(newDepth);
+      currentDepth = newDepth;
    }
-   else
-   {
-      ostringstream os;
-      os << state.m_me.m_coord;
-      placeToGo = os.str();
-   }
-   return placeToGo;
+
+   return tree;
 }
 
-static void changeObjective(GameState& state, vector<vector<vector<Pos>>>& shortestPaths, const Pos& bestObjectiveSoFar, const Pos& bestExplosionSoFar)
+static void rankTree(vector<vector<Node*>>& tree)
 {
-   state.m_objective = bestObjectiveSoFar;
-   shortestPaths.pop_back();//remove the latest which is the tile where we stand
-   state.m_objectiveShortestPath = shortestPaths[state.m_objective.m_x][state.m_objective.m_y];
-   state.m_objectiveType = computeDistance(bestObjectiveSoFar, bestExplosionSoFar) == 0 ? TYPE_BOMB : TYPE_OBJECT;
+   for (auto& depth : tree)
+      for (Node* node : depth)
+         rankNode(node);
 }
 
 class Game
@@ -67,89 +109,31 @@ public:
 		: m_state(state)
 	{}
 
-   string play()
+   string takeActionToDo(const vector<vector<Node*>>& tree)
    {
-      int numberOfPathsFound = 0;//toDebug
-      vector<vector<int>> bestScores(HEIGHT, vector<int>(WIDTH));//todebug
-      vector<vector<int>> bestExplosionScores(HEIGHT, vector<int>(WIDTH));//todebug
-      vector<vector<vector<Pos>>> shortestPaths(HEIGHT, vector<vector<Pos>>(WIDTH));
-      int bestScoreSoFar = std::numeric_limits<int>::min();
-      int bestExplosionScoreSoFar = std::numeric_limits<int>::min();
-      Pos bestObjectiveSoFar = Pos(0, 0);
-      Pos bestExplosionSoFar = Pos(0, 0);
-
-      //TODO: check, maybe useless
-      //before posing the bomb to avoid being trapped by its own bomb explosion
-      if (computeDistance(m_state.m_me, m_state.m_objective) == 1)
+      const auto& lastDepth = tree.back();
+      Node* bestNode = nullptr;
+      int maxScore = 0;
+      for (Node* node : lastDepth)
       {
-         updateTurnBeforeDestructionOnALine(GameObject(TYPE_BOMB, m_state.m_me.m_ownerId, m_state.m_objective, 9, 0), m_state.m_me.m_param2, m_state.m_me.m_param2, m_state.m_map);
-      }
-
-      //vector<vector<int>> bombAndDistanceTileScoreMap;
-      for (size_t i = 0; i < HEIGHT; ++i)
-      {
-         for (size_t j = 0; j < WIDTH; ++j)
+         if (node->m_score >= maxScore)
          {
-            const Floor& targetFloor = m_state.m_map[i][j];
-            if (!isPositionValid(targetFloor.m_coord) || !isPositionEmpty(targetFloor)) continue;
-            int emptyFloorBonus = 10;
-
-            //path, distance
-            shortestPaths[i][j] = findShortestPath(m_state.m_me, targetFloor.m_coord, m_state.m_map);
-            if (shortestPaths[i][j].empty()) continue; // not reachable
-            numberOfPathsFound++;
-            int distance = shortestPaths[i][j].size() - 1;
-
-            //score
-            fillScore(bestScores[i][j], bestExplosionScores[i][j], targetFloor, m_state.m_bombTileScoresMap[i][j], emptyFloorBonus, distance);
-            if (bestExplosionScoreSoFar < bestExplosionScores[i][j])
-            {
-               bestExplosionScoreSoFar = bestExplosionScores[i][j];
-               bestExplosionSoFar = Pos(i, j);
-            }
-
-            //best choices
-            if (bestScoreSoFar < bestScores[i][j])
-            {
-               bestScoreSoFar = bestScores[i][j];
-               bestObjectiveSoFar = Pos(i, j);
-            }
+            maxScore = node->m_score;
+            bestNode = node;
          }
       }
-
-      cerr << endl;
-      write(bestScores);
-      cerr << endl;
-      cerr << "numberOfPathsFound: " << numberOfPathsFound << endl;
-      //cerr << "Move" << endl;
-      //cerr << "bestPosSoFar: " << bestPosSoFar << endl;
-      //cerr << "objective: " << m_state.m_objective << endl;
-      //cerr << "myPos: " << m_state.m_me.m_coord << endl;
-      //cerr << "Move" << endl;
-
-      int distanceToObjective = computeDistance(m_state.m_objective, m_state.m_me.m_coord);
-      if (shortestPaths.empty())
+      
+      cerr << "maxScore: " << maxScore << endl;
+      Node* currentNode = bestNode;
+      Node* previousNode = bestNode->m_previous;
+      while (previousNode != nullptr && previousNode->m_previous != nullptr)
       {
-         changeObjective(m_state, shortestPaths, bestObjectiveSoFar, bestExplosionSoFar);
+         currentNode = previousNode;
+         previousNode = currentNode->m_previous;
       }
-      bool shouldChangeObjective = false;
-      string actionToDo = decideActionToDo(m_state, distanceToObjective, shouldChangeObjective);
-      string placeToGo = decidePlaceToGo(m_state);
-
-
-      //HACK for Boss
-      //if (m_state.m_timerBeforeNextBomb == 0 && !(m_state.m_me.m_coord.m_x == 0 && m_state.m_me.m_coord.m_x == 0) && (m_state.m_me.m_coord.m_x % 2 == 0 || m_state.m_me.m_coord.m_y % 2 == 0))
-      //{
-      //   actionToDo = "BOMB";
-      //}
-
+      
       ostringstream os;
-      os << actionToDo << " " << placeToGo << " " << actionToDo << " " << placeToGo;
-      if (shouldChangeObjective)
-      {
-         changeObjective(m_state, shortestPaths, bestObjectiveSoFar, bestExplosionSoFar);
-         os << "*" << " >> " << bestObjectiveSoFar;
-      }
+      os << currentNode->m_choice;
       return os.str();
    }
 
@@ -162,8 +146,19 @@ public:
 	{
 		// Write an action using cout. DON'T FORGET THE "<< endl"
 		// To debug: cerr << "Debug messages..." << endl;
-      string output = play();
-      cout << output << endl;
+      vector<vector<Node*>> futureTree = createTree(m_state.m_board);
+      rankTree(futureTree);
+      string output = takeActionToDo(futureTree);
+      cout << output << " " << output << endl;
+      
+      //cleaning
+      for (auto& depth : futureTree)
+      {
+         for (auto* Node : depth)
+         {
+            delete Node;
+         }
+      }
 	}
 
 public:
